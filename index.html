@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Site Ledger — Proposals, Change Orders &amp; Invoices</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Site Ledger">
+<meta name="theme-color" content="#8C2E3B">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  :root{
+    --navy:#20242B;      /* sidebar / ink */
+    --steel:#6b7280;
+    --orange:#A8404E;    /* brand red — bars, highlights (lighter maroon) */
+    --orange-dark:#8C2E3B;
+    --concrete:#F3F1EE;
+    --charcoal:#26241F;
+    --line:#E4E1DC;
+    --shade:#F2F2F2;
+  }
+  html,body{ background:var(--concrete); color:var(--charcoal); font-family:'Inter',system-ui,sans-serif; -webkit-tap-highlight-color:transparent; }
+  .font-head{ font-family:'Barlow Condensed',sans-serif; }
+  input, select, textarea{ background:#fff; }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--orange); outline-offset:1px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:10px; }
+  .btn-primary{ background:var(--orange-dark); color:#fff; }
+  .btn-primary:hover{ background:#74212C; }
+  .btn-accent{ background:var(--orange); color:#fff; }
+  .btn-accent:hover{ background:#8C2E3B; }
+  .btn-ghost{ background:transparent; color:var(--orange-dark); border:1px solid var(--line); }
+  .btn-ghost:hover{ background:var(--concrete); }
+  .field-label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:#8a8375; margin-bottom:.25rem; display:block; }
+  .ledger-row{ display:flex; justify-content:space-between; gap:1rem; padding:.35rem 0; border-bottom:1px solid var(--line); font-size:.85rem; }
+  .ledger-row:last-child{ border-bottom:none; }
+  .ledger-row.total{ font-weight:700; color:var(--orange-dark); font-size:.95rem; }
+
+  /* Sidebar nav */
+  .nav-btn{ color:rgba(255,255,255,.65); font-size:.86rem; transition:background .12s; }
+  .nav-btn:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .nav-btn.active{ background:var(--orange); color:#fff; font-weight:600; }
+  .create-btn{ color:rgba(255,255,255,.85); }
+
+  /* Doc-type tabs + view-mode toggle */
+  .doctype-tab{ color:#8a8375; border-bottom:2px solid transparent; padding:.4rem .1rem; font-size:.85rem; }
+  .doctype-tab.active{ color:var(--orange-dark); border-bottom-color:var(--orange); font-weight:600; }
+  .viewmode-btn{ font-size:.72rem; padding:.3rem .6rem; color:#6b675f; }
+  .viewmode-btn.active{ background:var(--orange-dark); color:#fff; border-radius:6px; }
+
+  .view-panel{ display:flex; }
+  .view-panel.hidden{ display:none; }
+  ::-webkit-scrollbar{ height:6px; width:6px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
+  .hidden{ display:none !important; }
+
+  /* Live preview page look */
+  #livePreview{ font-size:12px; line-height:1.4; color:#26241f; }
+  #livePreview .pv-bar{ background:var(--orange); color:#fff; font-weight:700; font-size:10px; letter-spacing:.03em; text-transform:uppercase; padding:5px 8px; }
+  #livePreview table{ width:100%; border-collapse:collapse; }
+  #livePreview .pv-meta td{ padding:4px 8px; font-size:10.5px; }
+  #livePreview .pv-items th{ background:var(--orange); color:#fff; font-size:10px; text-transform:uppercase; text-align:left; padding:6px 8px; }
+  #livePreview .pv-items td{ padding:6px 8px; border-bottom:1px solid var(--line); font-size:11px; }
+  #livePreview .pv-totals td{ padding:4px 8px; font-size:11px; }
+  #livePreview .pv-highlight{ background:var(--orange); color:#fff; font-weight:700; }
+</style>
+</head>
+<body class="h-screen overflow-hidden flex">
+
+<!-- ============================== SIDEBAR ============================== -->
+<aside class="w-56 shrink-0 h-screen flex flex-col" style="background:var(--navy)">
+  <div class="px-4 py-4 border-b border-white/10">
+    <p class="font-head text-2xl text-white leading-none" id="hdrCompanyName">Site Ledger</p>
+    <p class="text-[10px] tracking-wide text-white/40 mt-1" id="hdrCompanyMeta">CONSTRUCTION DOCS</p>
+  </div>
+  <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+    <div>
+      <p class="px-2 text-[10px] uppercase tracking-wide text-white/30 mb-1">Documents</p>
+      <button data-nav="alldocs" class="nav-btn w-full text-left px-3 py-2 rounded-md">All Documents</button>
+      <button data-nav="ledgers" class="nav-btn w-full text-left px-3 py-2 rounded-md">Project Ledgers</button>
+    </div>
+    <div>
+      <p class="px-2 text-[10px] uppercase tracking-wide text-white/30 mb-1">Create</p>
+      <button data-nav="newdoc" data-doctype="PROPOSAL" class="nav-btn create-btn w-full text-left px-3 py-2 rounded-md">+ New Proposal</button>
+      <button data-nav="newdoc" data-doctype="CHANGE_ORDER" class="nav-btn create-btn w-full text-left px-3 py-2 rounded-md">+ New Change Order</button>
+      <button data-nav="newdoc" data-doctype="INVOICE" class="nav-btn create-btn w-full text-left px-3 py-2 rounded-md">+ New Invoice</button>
+    </div>
+    <div>
+      <p class="px-2 text-[10px] uppercase tracking-wide text-white/30 mb-1">Manage</p>
+      <button data-nav="manage" class="nav-btn w-full text-left px-3 py-2 rounded-md">Companies &amp; Projects</button>
+    </div>
+  </nav>
+  <div class="px-3 py-3 border-t border-white/10">
+    <button data-nav="manage" class="nav-btn w-full text-left px-3 py-2 rounded-md">⚙ Settings</button>
+  </div>
+</aside>
+
+<!-- ============================== MAIN ============================== -->
+<main class="flex-1 h-screen overflow-hidden flex flex-col">
+
+  <!-- ===================== VIEW: NEW DOCUMENT ===================== -->
+  <section id="view-newdoc" class="view-panel flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-4 flex-wrap">
+        <div>
+          <p class="font-head text-xl leading-none" id="ndHeading">New Document</p>
+          <p class="text-xs text-[#8a8375] mt-0.5" id="ndStatusBadge">Unsaved</p>
+        </div>
+        <div class="flex gap-4 border-l border-[var(--line)] pl-4">
+          <button class="doctype-tab" data-doctype="PROPOSAL">Proposal</button>
+          <button class="doctype-tab" data-doctype="CHANGE_ORDER">Change Order</button>
+          <button class="doctype-tab" data-doctype="INVOICE">Invoice</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex border border-[var(--line)] rounded-md overflow-hidden">
+          <button class="viewmode-btn" data-mode="form">Form</button>
+          <button class="viewmode-btn active" data-mode="split">Split</button>
+          <button class="viewmode-btn" data-mode="preview">Preview</button>
+        </div>
+        <button id="ndPdfBtn" class="btn-ghost text-xs px-3 py-2 rounded-md" disabled>Download PDF</button>
+        <button id="ndSaveBtn" class="btn-primary text-xs px-4 py-2 rounded-md font-medium">Save</button>
+      </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden" id="ndWorkspace">
+      <!-- ---------- FORM PANE ---------- -->
+      <div id="ndFormPane" class="overflow-y-auto p-4 sm:p-6 space-y-5" style="width:50%">
+
+        <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Project &amp; Document Info</h2>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label class="field-label">Client Company</label>
+              <select id="ndCompanySelect" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+            </div>
+            <div>
+              <label class="field-label">Project / Jobsite</label>
+              <select id="ndProjectSelect" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+            </div>
+            <div>
+              <label class="field-label">Document #</label>
+              <input id="ndDocNumber" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm font-medium" placeholder="Auto-suggested">
+            </div>
+            <div>
+              <label class="field-label">Date</label>
+              <input id="ndDate" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="field-label">P.O. / S.O. Reference</label>
+              <input id="ndPO" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="Optional">
+            </div>
+            <div>
+              <label class="field-label" id="ndDueDateLabel">Due Date</label>
+              <input id="ndDueDate" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+          </div>
+          <select id="ndDocType" class="hidden">
+            <option value="PROPOSAL">Proposal</option>
+            <option value="CHANGE_ORDER">Change Order</option>
+            <option value="INVOICE">Invoice</option>
+          </select>
+          <p id="ndProjectHint" class="text-xs text-[var(--orange-dark)] mt-3 hidden"></p>
+        </div>
+
+        <div class="card p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-head text-lg text-[var(--orange-dark)]">Scope of Work</h2>
+            <div class="flex rounded-md overflow-hidden border border-[var(--line)] text-xs">
+              <button id="ndModeLumpBtn" class="viewmode-btn active" style="border-radius:0">Lump Sum</button>
+              <button id="ndModeItemBtn" class="viewmode-btn" style="border-radius:0">Itemized</button>
+            </div>
+          </div>
+
+          <div id="ndLumpPanel" class="space-y-3">
+            <div>
+              <label class="field-label">Scope Summary</label>
+              <textarea id="ndLumpDesc" rows="3" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="Describe the scope of work covered by this lump sum amount…"></textarea>
+            </div>
+            <div class="sm:w-64">
+              <label class="field-label">Lump Sum Amount ($)</label>
+              <input id="ndLumpAmount" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+          </div>
+
+          <div id="ndItemPanel" class="hidden space-y-3">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[520px]">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                    <th class="p-1">Description</th>
+                    <th class="p-1 w-16">Qty</th>
+                    <th class="p-1 w-20">Unit</th>
+                    <th class="p-1 w-28">Unit Price</th>
+                    <th class="p-1 w-28 text-right">Amount</th>
+                    <th class="p-1 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody id="ndLineItemsBody"></tbody>
+              </table>
+            </div>
+            <button id="ndAddRowBtn" class="btn-ghost text-xs px-3 py-1.5 rounded">+ Add Line Item</button>
+          </div>
+        </div>
+
+        <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Cost Additions &amp; Markups</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div><label class="field-label">Tax (%)</label><input id="ndTax" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Overhead (%)</label><input id="ndOverhead" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Bonding (%)</label><input id="ndBonding" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Insurance (%)</label><input id="ndInsurance" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div><label class="field-label">Scaffolding ($)</label><input id="ndScaffold" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Crane / Rigging ($)</label><input id="ndRigging" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Extra Labor ($)</label><input id="ndExtraLabor" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+            <div><label class="field-label">Extra Materials ($)</label><input id="ndExtraMaterials" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          </div>
+        </div>
+
+        <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Notes &amp; Payment Terms</h2>
+          <textarea id="ndNotes" rows="3" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="e.g. Deposit due prior to commencement of work. Remaining balance paid through weekly progress payments…"></textarea>
+        </div>
+
+        <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Totals</h2>
+          <div id="ndProposalDepositRow" class="hidden sm:w-64 mb-3">
+            <label class="field-label">Deposit Due ($) — optional</label>
+            <input id="ndDeposit" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+          </div>
+          <div id="ndLedgerBox">
+            <div class="ledger-row"><span>Total</span><span id="ndOutSubtotal">$0.00</span></div>
+            <div class="ledger-row"><span>Total Markups / Additions</span><span id="ndOutAdjustments">$0.00</span></div>
+            <div class="ledger-row total"><span>Grand Total</span><span id="ndOutGrandTotal">$0.00</span></div>
+            <div id="ndProposalLedgerRows" class="hidden">
+              <div class="ledger-row"><span>Deposit Due</span><span id="ndOutDeposit">($0.00)</span></div>
+              <div class="ledger-row total"><span>Amount Due</span><span id="ndOutAmountDue">$0.00</span></div>
+            </div>
+            <div id="ndInvoiceLedgerRows" class="hidden">
+              <div class="ledger-row"><span>Previously Received</span><span id="ndOutPrevReceived">($0.00)</span></div>
+              <div class="ledger-row items-center"><span>Current Payment Due</span><input id="ndCurrentDueInput" type="number" step="0.01" class="w-32 border border-[var(--line)] rounded px-2 py-1 text-sm text-right"></div>
+              <div class="ledger-row total"><span>Remaining Balance</span><span id="ndOutRemaining">$0.00</span></div>
+              <p class="text-[11px] text-[#8a8375] mt-1">Defaults to the grand total above — edit it directly for a partial or progress billing amount.</p>
+            </div>
+            <div id="ndCoLedgerNote" class="hidden text-xs text-[var(--orange-dark)] mt-2"></div>
+          </div>
+        </div>
+
+        <div class="text-right">
+          <button id="ndResetBtn" class="btn-ghost px-4 py-2 rounded text-sm">Clear Form</button>
+        </div>
+      </div>
+
+      <!-- ---------- LIVE PREVIEW PANE ---------- -->
+      <div id="ndPreviewPane" class="overflow-y-auto p-6 flex justify-center" style="width:50%; background:var(--concrete)">
+        <div class="w-full max-w-[720px]">
+          <p class="text-xs text-[#8a8375] mb-2 flex items-center justify-between">
+            <span>Live Preview · <span id="pvDocTypeLabel">PROPOSAL</span></span>
+            <span>Exact print layout</span>
+          </p>
+          <div id="livePreview" class="bg-white shadow-md border border-[var(--line)] p-8"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW: ALL DOCUMENTS ===================== -->
+  <section id="view-alldocs" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
+      <p class="font-head text-xl">All Documents</p>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div class="card p-4 sm:p-5">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[720px]">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                <th class="p-2">Type</th>
+                <th class="p-2">Doc #</th>
+                <th class="p-2">Client</th>
+                <th class="p-2">Project</th>
+                <th class="p-2">Date</th>
+                <th class="p-2 text-right">Grand Total</th>
+                <th class="p-2"></th>
+              </tr>
+            </thead>
+            <tbody id="allDocsBody"></tbody>
+          </table>
+        </div>
+        <p id="allDocsEmpty" class="text-sm text-[#8a8375] mt-3 hidden">No documents saved yet. Create one from the sidebar.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW: PROJECT LEDGERS ===================== -->
+  <section id="view-ledgers" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
+      <p class="font-head text-xl">Project Ledgers</p>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+      <div class="card p-4 sm:p-5">
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Client Company</label>
+            <select id="hsCompanySelect" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+          </div>
+          <div>
+            <label class="field-label">Project</label>
+            <select id="hsProjectSelect" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+          </div>
+        </div>
+      </div>
+
+      <div id="hsLedgerCard" class="card p-4 sm:p-5 hidden">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Project Ledger</h2>
+        <div id="hsLedgerBox"></div>
+      </div>
+
+      <div id="hsDocsCard" class="card p-4 sm:p-5 hidden">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Documents</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[520px]">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                <th class="p-2">Type</th>
+                <th class="p-2">Doc #</th>
+                <th class="p-2">Date</th>
+                <th class="p-2 text-right">Grand Total</th>
+                <th class="p-2"></th>
+              </tr>
+            </thead>
+            <tbody id="hsDocsBody"></tbody>
+          </table>
+        </div>
+        <p id="hsNoDocs" class="text-sm text-[#8a8375] mt-3 hidden">No documents yet for this project.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW: MANAGE ===================== -->
+  <section id="view-manage" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
+      <p class="font-head text-xl">Companies &amp; Projects</p>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Your Company Profile</h2>
+        <p class="text-xs text-[#8a8375] mb-3">Appears on the sidebar and in the top-left and footer of every generated PDF.</p>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div><label class="field-label">Company Name</label><input id="mySettName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">License # (optional)</label><input id="mySettLicense" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div class="sm:col-span-2"><label class="field-label">Address</label><input id="mySettAddress" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">Phone</label><input id="mySettPhone" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">Email</label><input id="mySettEmail" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+        </div>
+        <div class="mt-3 text-right">
+          <button id="mySettSaveBtn" class="btn-primary px-4 py-2 rounded text-sm">Save Profile</button>
+        </div>
+      </div>
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Client Companies</h2>
+        <form id="addCompanyForm" class="grid sm:grid-cols-2 gap-3">
+          <div><label class="field-label">Company Name</label><input required id="compName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">Phone</label><input id="compPhone" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div class="sm:col-span-2">
+            <label class="field-label">Address (3 lines)</label>
+            <div class="grid sm:grid-cols-3 gap-2">
+              <input id="compAddress1" placeholder="Street address" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <input id="compAddress2" placeholder="City" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <input id="compAddress3" placeholder="State / ZIP" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div><label class="field-label">Email</label><input id="compEmail" type="email" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div class="sm:col-span-2 text-right"><button type="submit" class="btn-primary px-4 py-2 rounded text-sm">+ Add Client Company</button></div>
+        </form>
+        <div id="companiesList" class="mt-4 divide-y divide-[var(--line)]"></div>
+      </div>
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Projects / Jobsites</h2>
+        <div class="mb-3">
+          <label class="field-label">Client Company</label>
+          <select id="mgCompanySelect" class="w-full sm:w-72 border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+        </div>
+        <form id="addProjectForm" class="grid sm:grid-cols-2 gap-3">
+          <div><label class="field-label">Project Name</label><input required id="projName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">Start Date</label><input id="projStart" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div class="sm:col-span-2">
+            <label class="field-label">Jobsite Address (3 lines)</label>
+            <div class="grid sm:grid-cols-3 gap-2">
+              <input id="projAddress1" placeholder="Street address" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <input id="projAddress2" placeholder="City" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <input id="projAddress3" placeholder="State / ZIP" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div><label class="field-label">Original Contract Total ($)</label><input id="projContract" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div class="sm:col-span-2 text-right"><button type="submit" class="btn-primary px-4 py-2 rounded text-sm">+ Add Project</button></div>
+        </form>
+        <div id="projectsList" class="mt-4 space-y-2"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* =====================================================================
+   SITE LEDGER — Construction Document, Billing & Project Ledger System
+   Single-file PWA. All data persists in localStorage. No backend.
+   ===================================================================== */
+
+const STORAGE_KEY = 'siteLedgerDB_v1';
+let DB = null;
+
+function defaultDB(){
+  return {
+    myCompany: {
+      name: 'Aresh Construction Corp.',
+      address: '642 Ayres Avenue, North Plainfield, NJ 07063',
+      phone: '516-417-9454',
+      email: 'Areshconstruction@yahoo.com',
+      license: ''
+    },
+    companies: [],
+    projects:  [],
+    documents: [],
+    meta: { nextProjectSeq: 1 }
+  };
+}
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    DB = raw ? JSON.parse(raw) : defaultDB();
+    DB.myCompany = DB.myCompany || defaultDB().myCompany;
+    DB.companies = DB.companies || [];
+    DB.projects  = DB.projects  || [];
+    DB.documents = DB.documents || [];
+    DB.meta = DB.meta || { nextProjectSeq: 1 };
+  }catch(e){
+    console.error('Failed to load local data, starting fresh.', e);
+    DB = defaultDB();
+  }
+}
+function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+
+/* ------------------------------ Helpers ------------------------------ */
+function uid(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id-' + Date.now() + '-' + Math.random().toString(16).slice(2)); }
+function pad2(n){ n = Math.max(1, n); return n < 10 ? '0' + n : '' + n; }
+function money(n){ n = Number(n) || 0; return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function escapeHtml(str){ return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function $(id){ return document.getElementById(id); }
+function formatDateLong(s){
+  if(!s) return '—';
+  const d = new Date(s + 'T00:00:00');
+  if(isNaN(d)) return s;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+function joinAddressLines(l1, l2, l3){ return [l1, l2, l3].map(s => (s||'').trim()).filter(Boolean).join('\n'); }
+function addressOneLine(addr){ return addr ? addr.replace(/\n+/g, ', ') : ''; }
+const DOC_TITLE_MAP = { PROPOSAL:'PROPOSAL', CHANGE_ORDER:'CHANGE ORDER', INVOICE:'INVOICE' };
+const DOC_NUMBER_LABEL_MAP = { PROPOSAL:'Proposal #', CHANGE_ORDER:'Change Order #', INVOICE:'Invoice #' };
+const DOC_TYPE_LABEL = { PROPOSAL:'Proposal', CHANGE_ORDER:'Change Order', INVOICE:'Invoice' };
+
+/* ------------------------- Project ledger math ------------------------ */
+function getProjectLedger(project){
+  if(!project) return { approvedCO:0, revised:0, billed:0, received:0, remaining:0 };
+  const cos = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER');
+  const approvedCO = cos.reduce((s,d) => s + d.financials.grandTotal, 0);
+  const original = Number(project.originalContractTotal) || 0;
+  const revised = original + approvedCO;
+  const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE');
+  const billed = invs.reduce((s,d) => s + d.financials.currentDue, 0);
+  const received = billed;
+  const remaining = revised - received;
+  return { approvedCO, revised, billed, received, remaining, original };
+}
+
+function nextDocNumber(project, docType, dateStr){
+  const year = new Date(dateStr || Date.now()).getFullYear();
+  if(docType === 'PROPOSAL'){
+    const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'PROPOSAL').length + 1;
+    return `PROP-${year}-${project.seq}-${pad2(n)}`;
+  }
+  if(docType === 'CHANGE_ORDER'){
+    const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER').length + 1;
+    return `CO-${pad2(n)}`;
+  }
+  const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE').length + 1;
+  return `INV-${pad2(n)}`;
+}
+
+/* Shared row-builders used by BOTH the live preview and the PDF, so they can never drift apart */
+function buildAdjustmentRows(subtotal, adj){
+  const rows = [];
+  if(adj.taxPercent) rows.push([`Tax (${adj.taxPercent}%)`, money(subtotal * adj.taxPercent/100)]);
+  if(adj.overheadPercent) rows.push([`Overhead (${adj.overheadPercent}%)`, money(subtotal * adj.overheadPercent/100)]);
+  if(adj.bondingPercent) rows.push([`Bonding (${adj.bondingPercent}%)`, money(subtotal * adj.bondingPercent/100)]);
+  if(adj.insurancePercent) rows.push([`Insurance (${adj.insurancePercent}%)`, money(subtotal * adj.insurancePercent/100)]);
+  if(adj.scaffoldingFee) rows.push(['Scaffolding', money(adj.scaffoldingFee)]);
+  if(adj.riggingFee) rows.push(['Crane / Rigging', money(adj.riggingFee)]);
+  if(adj.extraLabor) rows.push(['Extra Labor', money(adj.extraLabor)]);
+  if(adj.extraMaterials) rows.push(['Extra Materials', money(adj.extraMaterials)]);
+  return rows;
+}
+function buildTotalsRows(f, docType, project, ledger, adj){
+  const rows = buildAdjustmentRows(f.subtotal, adj);
+  const highlight = [];
+  if(docType === 'PROPOSAL'){
+    rows.push(['Total:', money(f.grandTotal)]);
+    if(f.depositAmount) rows.push(['Deposit:', '(' + money(f.depositAmount) + ')']);
+    rows.push(['Amount Due (USD):', money(f.amountDue)]);
+    highlight.push('Amount Due (USD):');
+  } else if(docType === 'CHANGE_ORDER'){
+    rows.push(['Total This Change Order:', money(f.grandTotal)]);
+    const before = project ? Math.max(project.originalContractTotal || 0, (ledger ? ledger.revised : 0) - f.grandTotal) : 0;
+    rows.push(['Contract Before This CO:', money(before)]);
+    rows.push(['Revised Contract Total:', money(ledger ? ledger.revised : 0)]);
+    highlight.push('Revised Contract Total:');
+  } else {
+    rows.push(['Subtotal:', money(f.subtotal)]);
+    rows.push(['Previously Received:', '(' + money(f.previouslyReceived) + ')']);
+    rows.push(['Current Payment Due:', money(f.currentDue)]);
+    rows.push(['Remaining Balance:', money(f.remainingBalance)]);
+    highlight.push('Current Payment Due:', 'Remaining Balance:');
+  }
+  return { rows, highlight };
+}
+function getMetaInfo(docType, docNumber, dateStr, po, dueDate, f){
+  const rows = [
+    [DOC_NUMBER_LABEL_MAP[docType], docNumber || '—'],
+    ['Date', formatDateLong(dateStr)],
+    ['P.O. / S.O.', po || '—']
+  ];
+  if(docType === 'PROPOSAL') rows.push(['Valid Until', dueDate ? formatDateLong(dueDate) : '—']);
+  else rows.push(['Due Date', dueDate ? formatDateLong(dueDate) : 'Upon Receipt']);
+  const amountLabel = docType === 'INVOICE' ? 'Current Due' : (docType === 'PROPOSAL' ? 'Amount Due' : 'Grand Total');
+  const amountValue = docType === 'INVOICE' ? f.currentDue : (docType === 'PROPOSAL' ? f.amountDue : f.grandTotal);
+  rows.push([amountLabel, money(amountValue)]);
+  return { rows, amountLabel };
+}
+
+/* ============================ NAVIGATION ============================ */
+function switchView(target){
+  document.querySelectorAll('.view-panel').forEach(p=>p.classList.add('hidden'));
+  $('view-' + target).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav === target));
+  if(target === 'alldocs') renderAllDocs();
+  if(target === 'ledgers') renderHistoryTab();
+  if(target === 'manage'){ renderCompaniesList(); renderProjectsList(); }
+}
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(btn.dataset.doctype){
+      $('ndDocType').value = btn.dataset.doctype;
+      syncDocTypeTabs();
+      resetFieldOverrides();
+      onNdContextChange();
+    }
+    switchView(btn.dataset.nav);
+  });
+});
+
+/* ---- New Document: doc-type tabs ---- */
+document.querySelectorAll('.doctype-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    $('ndDocType').value = tab.dataset.doctype;
+    syncDocTypeTabs();
+    resetFieldOverrides();
+    onNdContextChange();
+  });
+});
+function syncDocTypeTabs(){
+  const dt = $('ndDocType').value;
+  document.querySelectorAll('.doctype-tab').forEach(t=> t.classList.toggle('active', t.dataset.doctype === dt));
+  $('ndDueDateLabel').textContent = dt === 'PROPOSAL' ? 'Valid Until' : 'Due Date';
+}
+
+/* ---- New Document: Form / Split / Preview toggle ---- */
+document.querySelectorAll('.viewmode-btn[data-mode]').forEach(btn=>{
+  btn.addEventListener('click', ()=> setViewMode(btn.dataset.mode));
+});
+function setViewMode(mode){
+  document.querySelectorAll('.viewmode-btn[data-mode]').forEach(b=>b.classList.toggle('active', b.dataset.mode === mode));
+  const formPane = $('ndFormPane'), previewPane = $('ndPreviewPane');
+  if(mode === 'form'){ formPane.style.display=''; formPane.style.width='100%'; previewPane.style.display='none'; }
+  else if(mode === 'preview'){ formPane.style.display='none'; previewPane.style.display=''; previewPane.style.width='100%'; }
+  else { formPane.style.display=''; previewPane.style.display=''; formPane.style.width='50%'; previewPane.style.width='50%'; }
+}
+
+/* ---- Unsaved indicator ---- */
+function markDirty(){ $('ndStatusBadge').textContent = 'Unsaved changes'; $('ndStatusBadge').style.color = '#A8404E'; }
+function markSaved(){ $('ndStatusBadge').textContent = 'Saved'; $('ndStatusBadge').style.color = '#4C7A5C'; }
+$('ndFormPane').addEventListener('input', markDirty);
+$('ndFormPane').addEventListener('change', markDirty);
+
+/* ============================ HEADER / BRAND ========================== */
+function renderHeader(){
+  $('hdrCompanyName').textContent = DB.myCompany.name || 'Site Ledger';
+  $('hdrCompanyMeta').textContent = [DB.myCompany.phone, DB.myCompany.email].filter(Boolean).join(' · ') || 'CONSTRUCTION DOCS';
+}
+
+/* ======================= COMPANY / PROJECT SELECTS ===================== */
+function fillCompanySelect(selectEl, selectedId){
+  const current = selectedId !== undefined ? selectedId : selectEl.value;
+  selectEl.innerHTML = '<option value="">Select client…</option>' +
+    DB.companies.map(c => `<option value="${c.id}">${escapeHtml(c.companyName)}</option>`).join('');
+  if(current && DB.companies.some(c=>c.id===current)) selectEl.value = current;
+}
+function fillProjectSelect(selectEl, companyId, selectedId){
+  const list = DB.projects.filter(p => p.companyId === companyId);
+  const current = selectedId !== undefined ? selectedId : selectEl.value;
+  selectEl.innerHTML = '<option value="">Select project…</option>' +
+    list.map(p => `<option value="${p.id}">${escapeHtml(p.projectName)}</option>`).join('');
+  if(current && list.some(p=>p.id===current)) selectEl.value = current;
+}
+
+/* ============================ MANAGE VIEW =============================== */
+function loadMyCompanyForm(){
+  $('mySettName').value = DB.myCompany.name || '';
+  $('mySettLicense').value = DB.myCompany.license || '';
+  $('mySettAddress').value = DB.myCompany.address || '';
+  $('mySettPhone').value = DB.myCompany.phone || '';
+  $('mySettEmail').value = DB.myCompany.email || '';
+}
+$('mySettSaveBtn').addEventListener('click', ()=>{
+  DB.myCompany = {
+    name: $('mySettName').value.trim(),
+    license: $('mySettLicense').value.trim(),
+    address: $('mySettAddress').value.trim(),
+    phone: $('mySettPhone').value.trim(),
+    email: $('mySettEmail').value.trim()
+  };
+  saveDB(); renderHeader(); renderLivePreview();
+  alert('Company profile saved.');
+});
+
+$('addCompanyForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const name = $('compName').value.trim();
+  if(!name) return;
+  const address = joinAddressLines($('compAddress1').value, $('compAddress2').value, $('compAddress3').value);
+  DB.companies.push({ id: uid(), companyName: name, address, phone: $('compPhone').value.trim(), email: $('compEmail').value.trim() });
+  saveDB();
+  e.target.reset();
+  renderAllSelects();
+  renderCompaniesList();
+});
+
+function renderCompaniesList(){
+  const box = $('companiesList');
+  if(DB.companies.length === 0){ box.innerHTML = '<p class="text-sm text-[#8a8375] py-2">No client companies yet — add one above.</p>'; return; }
+  box.innerHTML = DB.companies.map(c=>{
+    const projCount = DB.projects.filter(p=>p.companyId===c.id).length;
+    return `<div class="flex items-center justify-between py-2.5 gap-3">
+      <div class="min-w-0">
+        <p class="font-medium text-sm truncate">${escapeHtml(c.companyName)}</p>
+        <p class="text-xs text-[#8a8375] truncate">${escapeHtml([addressOneLine(c.address), c.phone, c.email].filter(Boolean).join('  ·  ')) || '—'}</p>
+        <p class="text-[11px] text-[var(--orange-dark)] mt-0.5">${projCount} project${projCount===1?'':'s'}</p>
+      </div>
+      <button data-id="${c.id}" class="delCompanyBtn text-xs text-[var(--orange)] shrink-0 px-2 py-1">Remove</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.delCompanyBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const projIds = DB.projects.filter(p=>p.companyId===id).map(p=>p.id);
+      if(!confirm('Remove this client company? This also deletes its ' + projIds.length + ' project(s) and all related documents.')) return;
+      DB.companies = DB.companies.filter(c=>c.id!==id);
+      DB.projects = DB.projects.filter(p=>p.companyId!==id);
+      DB.documents = DB.documents.filter(d=>!projIds.includes(d.projectId));
+      saveDB(); renderAllSelects(); renderCompaniesList(); renderProjectsList();
+    });
+  });
+}
+
+$('mgCompanySelect').addEventListener('change', renderProjectsList);
+$('addProjectForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const companyId = $('mgCompanySelect').value;
+  if(!companyId){ alert('Select a client company first.'); return; }
+  const name = $('projName').value.trim();
+  if(!name) return;
+  DB.projects.push({
+    id: uid(), seq: DB.meta.nextProjectSeq++, companyId, projectName: name,
+    jobAddress: joinAddressLines($('projAddress1').value, $('projAddress2').value, $('projAddress3').value), startDate: $('projStart').value,
+    originalContractTotal: Number($('projContract').value) || 0
+  });
+  saveDB(); e.target.reset(); $('projContract').value = 0;
+  renderAllSelects(); renderProjectsList();
+});
+
+function renderProjectsList(){
+  const companyId = $('mgCompanySelect').value;
+  const box = $('projectsList');
+  const list = DB.projects.filter(p=>p.companyId===companyId);
+  if(!companyId){ box.innerHTML = '<p class="text-sm text-[#8a8375] py-2">Select a client company above to see or add its projects.</p>'; return; }
+  if(list.length===0){ box.innerHTML = '<p class="text-sm text-[#8a8375] py-2">No projects yet for this client — add one above.</p>'; return; }
+  box.innerHTML = list.map(p=>{
+    const l = getProjectLedger(p);
+    return `<div class="border border-[var(--line)] rounded-lg p-3">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-medium text-sm truncate">${escapeHtml(p.projectName)}</p>
+          <p class="text-xs text-[#8a8375] truncate">${escapeHtml(addressOneLine(p.jobAddress) || '—')}</p>
+        </div>
+        <button data-id="${p.id}" class="delProjectBtn text-xs text-[var(--orange)] shrink-0 px-2 py-1">Remove</button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-xs">
+        <div><span class="text-[#8a8375]">Original</span><br><span class="font-medium">${money(p.originalContractTotal)}</span></div>
+        <div><span class="text-[#8a8375]">Revised</span><br><span class="font-medium">${money(l.revised)}</span></div>
+        <div><span class="text-[#8a8375]">Billed</span><br><span class="font-medium">${money(l.billed)}</span></div>
+        <div><span class="text-[#8a8375]">Remaining</span><br><span class="font-medium text-[var(--orange-dark)]">${money(l.remaining)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.delProjectBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      if(!confirm('Remove this project and all its documents? This cannot be undone.')) return;
+      DB.projects = DB.projects.filter(p=>p.id!==id);
+      DB.documents = DB.documents.filter(d=>d.projectId!==id);
+      saveDB(); renderAllSelects(); renderProjectsList();
+    });
+  });
+}
+
+/* ============================ NEW DOCUMENT ============================= */
+let ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
+let ndBillingMode = 'LUMP_SUM';
+let ndLastSavedDoc = null;
+
+function getSelectedProject(){ return DB.projects.find(p=>p.id === $('ndProjectSelect').value) || null; }
+function getSelectedClient(project){ return project ? DB.companies.find(c=>c.id===project.companyId) : null; }
+function getCurrentAdjustments(){
+  return {
+    taxPercent: Number($('ndTax').value) || 0,
+    overheadPercent: Number($('ndOverhead').value) || 0,
+    bondingPercent: Number($('ndBonding').value) || 0,
+    insurancePercent: Number($('ndInsurance').value) || 0,
+    scaffoldingFee: Number($('ndScaffold').value) || 0,
+    riggingFee: Number($('ndRigging').value) || 0,
+    extraLabor: Number($('ndExtraLabor').value) || 0,
+    extraMaterials: Number($('ndExtraMaterials').value) || 0
+  };
+}
+
+let ndDocNumberTouched = false;
+let ndCurrentDueTouched = false;
+function resetFieldOverrides(){ ndDocNumberTouched = false; ndCurrentDueTouched = false; }
+
+$('ndCompanySelect').addEventListener('change', ()=>{
+  fillProjectSelect($('ndProjectSelect'), $('ndCompanySelect').value, '');
+  resetFieldOverrides();
+  onNdContextChange();
+});
+$('ndProjectSelect').addEventListener('change', ()=>{ resetFieldOverrides(); onNdContextChange(); });
+$('ndDate').addEventListener('change', onNdContextChange);
+['ndPO','ndDueDate','ndNotes','ndLumpDesc'].forEach(id => $(id).addEventListener('input', renderLivePreview));
+$('ndDocNumber').addEventListener('input', ()=>{ ndDocNumberTouched = true; renderLivePreview(); });
+$('ndCurrentDueInput').addEventListener('input', ()=>{ ndCurrentDueTouched = true; recalcLedger(); });
+
+function onNdContextChange(){
+  const project = getSelectedProject();
+  const hint = $('ndProjectHint');
+  if(project){
+    const l = getProjectLedger(project);
+    hint.classList.remove('hidden');
+    hint.textContent = `Revised contract: ${money(l.revised)}  ·  Billed to date: ${money(l.billed)}  ·  Remaining: ${money(l.remaining)}`;
+    if(!ndDocNumberTouched) $('ndDocNumber').value = nextDocNumber(project, $('ndDocType').value, $('ndDate').value);
+  } else {
+    hint.classList.add('hidden');
+    if(!ndDocNumberTouched) $('ndDocNumber').value = '';
+  }
+  $('ndPdfBtn').setAttribute('disabled','disabled');
+  ndLastSavedDoc = null;
+  markDirty();
+  const heading = project ? `${project.projectName} — ${DOC_TYPE_LABEL[$('ndDocType').value]}` : 'New Document';
+  $('ndHeading').textContent = heading;
+  recalcLedger();
+}
+
+$('ndModeLumpBtn').addEventListener('click', ()=> setBillingMode('LUMP_SUM'));
+$('ndModeItemBtn').addEventListener('click', ()=> setBillingMode('ITEMIZED'));
+function setBillingMode(mode){
+  ndBillingMode = mode;
+  $('ndModeLumpBtn').classList.toggle('active', mode==='LUMP_SUM');
+  $('ndModeItemBtn').classList.toggle('active', mode==='ITEMIZED');
+  $('ndLumpPanel').classList.toggle('hidden', mode!=='LUMP_SUM');
+  $('ndItemPanel').classList.toggle('hidden', mode!=='ITEMIZED');
+  recalcLedger();
+}
+
+function renderLineItems(){
+  const body = $('ndLineItemsBody');
+  body.innerHTML = ndLineItems.map((li,i)=>{
+    const amt = (Number(li.qty)||0) * (Number(li.unitPrice)||0);
+    return `<tr class="border-b border-[var(--line)]">
+      <td class="p-1"><input class="li-desc w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${escapeHtml(li.description)}" placeholder="Description"></td>
+      <td class="p-1"><input type="number" step="0.01" class="li-qty w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${li.qty}"></td>
+      <td class="p-1"><input class="li-unit w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${escapeHtml(li.unit)}" placeholder="SF/CY/LF"></td>
+      <td class="p-1"><input type="number" step="0.01" class="li-price w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${li.unitPrice}"></td>
+      <td class="p-1 text-right text-sm font-medium">${money(amt)}</td>
+      <td class="p-1 text-center"><button class="li-remove text-[var(--orange)]" data-i="${i}">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+$('ndAddRowBtn').addEventListener('click', ()=>{ ndLineItems.push({ description:'', qty:1, unit:'LS', unitPrice:0 }); renderLineItems(); });
+$('ndLineItemsBody').addEventListener('input', (e)=>{
+  const i = e.target.dataset.i; if(i === undefined) return;
+  if(e.target.classList.contains('li-desc')) ndLineItems[i].description = e.target.value;
+  if(e.target.classList.contains('li-unit')) ndLineItems[i].unit = e.target.value;
+  if(e.target.classList.contains('li-qty')){ ndLineItems[i].qty = e.target.value; renderLineItems(); }
+  if(e.target.classList.contains('li-price')){ ndLineItems[i].unitPrice = e.target.value; renderLineItems(); }
+  recalcLedger();
+});
+$('ndLineItemsBody').addEventListener('click', (e)=>{
+  if(e.target.classList.contains('li-remove')){
+    const i = Number(e.target.dataset.i);
+    if(ndLineItems.length <= 1){ ndLineItems[0] = { description:'', qty:1, unit:'LS', unitPrice:0 }; }
+    else ndLineItems.splice(i,1);
+    renderLineItems(); recalcLedger();
+  }
+});
+
+['ndLumpAmount','ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit']
+  .forEach(id => $(id).addEventListener('input', recalcLedger));
+
+function computeFinancials(){
+  let subtotal;
+  if(ndBillingMode === 'LUMP_SUM') subtotal = Number($('ndLumpAmount').value) || 0;
+  else subtotal = ndLineItems.reduce((s,li)=> s + (Number(li.qty)||0) * (Number(li.unitPrice)||0), 0);
+
+  const adj = getCurrentAdjustments();
+  const pctAmt = subtotal * (adj.taxPercent + adj.overheadPercent + adj.bondingPercent + adj.insurancePercent) / 100;
+  const flatAmt = adj.scaffoldingFee + adj.riggingFee + adj.extraLabor + adj.extraMaterials;
+  const totalAdjustments = pctAmt + flatAmt;
+  const grandTotal = subtotal + totalAdjustments;
+
+  const docType = $('ndDocType').value;
+  const project = getSelectedProject();
+  let previouslyReceived = 0, currentDue = grandTotal, remainingBalance = null;
+  let depositAmount = 0, amountDue = grandTotal;
+
+  if(docType === 'INVOICE' && project){
+    const l = getProjectLedger(project);
+    previouslyReceived = l.received;
+    currentDue = ndCurrentDueTouched ? (Number($('ndCurrentDueInput').value) || 0) : grandTotal;
+    remainingBalance = l.revised - previouslyReceived - currentDue;
+  }
+  if(docType === 'PROPOSAL'){
+    depositAmount = Number($('ndDeposit').value) || 0;
+    amountDue = grandTotal - depositAmount;
+  }
+  return { subtotal, totalAdjustments, grandTotal, previouslyReceived, currentDue, remainingBalance, depositAmount, amountDue };
+}
+
+function recalcLedger(){
+  const f = computeFinancials();
+  $('ndOutSubtotal').textContent = money(f.subtotal);
+  $('ndOutAdjustments').textContent = money(f.totalAdjustments);
+  $('ndOutGrandTotal').textContent = money(f.grandTotal);
+
+  const docType = $('ndDocType').value;
+  const isInvoice = docType === 'INVOICE';
+  const isProposal = docType === 'PROPOSAL';
+  $('ndInvoiceLedgerRows').classList.toggle('hidden', !isInvoice);
+  if(isInvoice){
+    $('ndOutPrevReceived').textContent = '(' + money(f.previouslyReceived) + ')';
+    if(!ndCurrentDueTouched) $('ndCurrentDueInput').value = f.currentDue.toFixed(2);
+    $('ndOutRemaining').textContent = money(f.remainingBalance);
+  }
+  $('ndProposalDepositRow').classList.toggle('hidden', !isProposal);
+  $('ndProposalLedgerRows').classList.toggle('hidden', !isProposal);
+  if(isProposal){
+    $('ndOutDeposit').textContent = '(' + money(f.depositAmount) + ')';
+    $('ndOutAmountDue').textContent = money(f.amountDue);
+  }
+
+  const coNote = $('ndCoLedgerNote');
+  if(docType === 'CHANGE_ORDER'){
+    coNote.classList.remove('hidden');
+    coNote.textContent = `Saving this Change Order will add ${money(f.grandTotal)} to the project's approved change orders and revised contract total.`;
+  } else coNote.classList.add('hidden');
+
+  renderLivePreview();
+  return f;
+}
+
+/* ---------------------------- Live preview ---------------------------- */
+function renderLivePreview(){
+  const project = getSelectedProject();
+  const client = getSelectedClient(project);
+  const docType = $('ndDocType').value;
+  const f = computeFinancials();
+  const adj = getCurrentAdjustments();
+  const ledger = project ? getProjectLedger(project) : null;
+  const docNumber = $('ndDocNumber').value || '—';
+
+  $('pvDocTypeLabel').textContent = DOC_TITLE_MAP[docType];
+
+  const meta = getMetaInfo(docType, docNumber, $('ndDate').value, $('ndPO').value, $('ndDueDate').value, f);
+  const metaRowsHtml = meta.rows.map((r,i)=>{
+    const isLast = i === meta.rows.length - 1;
+    return `<tr><td class="bg-[var(--shade)] font-bold" style="color:#5a554f">${escapeHtml(r[0])}</td>
+      <td class="text-right ${isLast?'font-bold':''}" style="${isLast?'color:var(--orange)':''}">${escapeHtml(r[1])}</td></tr>`;
+  }).join('');
+
+  const clientAddrLines = client ? [client.address, [client.phone, client.email].filter(Boolean).join('  /  ')].filter(Boolean).join('\n') : '';
+  const projectNameLine = project ? `PROJECT: ${escapeHtml(project.projectName)}` : 'PROJECT: —';
+  const projectAddrLines = project && project.jobAddress ? project.jobAddress : '';
+  const lumpNote = (ndBillingMode === 'LUMP_SUM' && $('ndLumpDesc').value.trim())
+    ? `<p class="text-[11px] mb-3" style="color:#6e675d; white-space:pre-line">${escapeHtml($('ndLumpDesc').value.trim())}</p>` : '';
+
+  let itemsHead, itemsRows;
+  if(ndBillingMode === 'ITEMIZED'){
+    itemsHead = '<tr><th>Description</th><th>Qty</th><th>Unit</th><th class="text-right">Unit Price</th><th class="text-right">Amount</th></tr>';
+    itemsRows = ndLineItems.map(li=>{
+      const amt = (Number(li.qty)||0) * (Number(li.unitPrice)||0);
+      return `<tr><td>${escapeHtml(li.description||'—')}</td><td>${escapeHtml(String(li.qty||''))}</td><td>${escapeHtml(li.unit||'')}</td><td class="text-right">${money(li.unitPrice)}</td><td class="text-right">${money(amt)}</td></tr>`;
+    }).join('');
+  } else {
+    itemsHead = '<tr><th>Items</th><th>Quantity</th><th class="text-right">Price</th><th class="text-right">Amount</th></tr>';
+    const amt = Number($('ndLumpAmount').value) || 0;
+    itemsRows = `<tr><td>${escapeHtml($('ndLumpDesc').value.trim() || 'Scope of Work')}</td><td>1 LS</td><td class="text-right">${money(amt)}</td><td class="text-right">${money(amt)}</td></tr>`;
+  }
+
+  const totals = buildTotalsRows(f, docType, project, ledger, adj);
+  const totalsRowsHtml = totals.rows.map(r=>{
+    const isHi = totals.highlight.includes(r[0]);
+    return `<tr class="${isHi?'pv-highlight':''}"><td class="font-bold" style="${isHi?'':'color:#4a4540'}">${escapeHtml(r[0])}</td><td class="text-right ${isHi?'font-bold':''}">${escapeHtml(r[1])}</td></tr>`;
+  }).join('');
+
+  const notesText = $('ndNotes').value.trim() || (docType === 'INVOICE'
+    ? 'This invoice represents a progress payment for work completed to date in accordance with the project scope. Please remit payment by the due date above.'
+    : 'By signing below, the client accepts this document and authorizes work to proceed as outlined above. Any work outside this scope requires separate written authorization.');
+
+  const signatureHtml = docType !== 'INVOICE' ? `
+    <div class="flex justify-between mt-8 text-[10.5px]" style="color:#6e675d">
+      <div class="w-[45%]"><div class="border-t border-gray-400 pt-1">Client Signature &amp; Date</div></div>
+      <div class="w-[45%]"><div class="border-t border-gray-400 pt-1">Authorized Signature &amp; Date</div></div>
+    </div>` : '';
+
+  const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('  •  ');
+
+  $('livePreview').innerHTML = `
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <p class="font-bold text-base">${escapeHtml(DB.myCompany.name || 'Your Company')}</p>
+        <p class="text-[11px] mt-1" style="color:#6e675d">${escapeHtml(DB.myCompany.address||'')}</p>
+        <p class="text-[11px]" style="color:#6e675d">${escapeHtml(DB.myCompany.phone||'')}</p>
+        <p class="text-[11px]" style="color:#6e675d">${escapeHtml(DB.myCompany.email||'')}</p>
+      </div>
+      <p class="font-head font-bold text-3xl" style="color:var(--orange)">${DOC_TITLE_MAP[docType]}</p>
+    </div>
+    <div class="flex justify-end mb-4">
+      <table class="pv-meta w-64"><tbody>${metaRowsHtml}</tbody></table>
+    </div>
+    <div class="pv-bar mb-2">Bill To</div>
+    <p class="font-bold text-sm">${client ? escapeHtml(client.companyName) : 'Client not on file'}</p>
+    <p class="text-[11px] mb-3" style="color:#6e675d; white-space:pre-line">${escapeHtml(clientAddrLines)}</p>
+    <p class="font-bold text-[12px] mb-1">${projectNameLine}</p>
+    ${projectAddrLines ? `<p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(projectAddrLines)}</p>` : ''}
+    ${lumpNote}
+    <table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>
+    <div class="flex justify-end mb-4">
+      <table class="pv-totals w-64"><tbody>${totalsRowsHtml}</tbody></table>
+    </div>
+    <div class="pv-bar mb-2">Notes / Terms</div>
+    <p class="font-bold text-[11px] mb-1">Payment Terms &amp; Notes</p>
+    <p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(notesText)}</p>
+    ${signatureHtml}
+    <div class="text-white text-center text-[11px] py-2 -mx-8 -mb-8 mt-6" style="background:var(--orange)">${escapeHtml(brandLine || 'Site Ledger')}</div>
+  `;
+}
+
+$('ndResetBtn').addEventListener('click', resetNewDocForm);
+function resetNewDocForm(){
+  $('ndPO').value = ''; $('ndDueDate').value = ''; $('ndDate').value = todayISO();
+  $('ndLumpDesc').value = ''; $('ndLumpAmount').value = 0; $('ndNotes').value = ''; $('ndDeposit').value = 0;
+  ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
+  renderLineItems(); setBillingMode('LUMP_SUM');
+  ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
+  resetFieldOverrides();
+  onNdContextChange();
+  markSaved();
+}
+
+$('ndSaveBtn').addEventListener('click', ()=>{
+  const project = getSelectedProject();
+  if(!project){ alert('Select a client company and project first.'); return; }
+  const docType = $('ndDocType').value;
+
+  let lineItems;
+  if(ndBillingMode === 'ITEMIZED'){
+    lineItems = ndLineItems.filter(li => (li.description && li.description.trim()) || Number(li.unitPrice))
+      .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
+    if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
+  } else {
+    const amt = Number($('ndLumpAmount').value) || 0;
+    if(amt <= 0){ alert('Enter a lump sum amount greater than zero.'); return; }
+    lineItems = [{ description: $('ndLumpDesc').value || 'Lump Sum Scope of Work', qty:1, unit:'LS', unitPrice:amt, total:amt }];
+  }
+
+  const f = computeFinancials();
+  const docNumber = $('ndDocNumber').value.trim() || nextDocNumber(project, docType, $('ndDate').value);
+
+  const doc = {
+    id: uid(), projectId: project.id, docType, docNumber,
+    date: $('ndDate').value || todayISO(), poReference: $('ndPO').value.trim(), dueDate: $('ndDueDate').value,
+    billingMode: ndBillingMode, lineItems,
+    lumpSumSummary: ndBillingMode === 'LUMP_SUM' ? ($('ndLumpDesc').value || '') : null,
+    adjustments: getCurrentAdjustments(),
+    financials: {
+      subtotal: f.subtotal, totalAdjustments: f.totalAdjustments, grandTotal: f.grandTotal,
+      previouslyReceived: f.previouslyReceived, currentDue: f.currentDue, remainingBalance: f.remainingBalance,
+      depositAmount: f.depositAmount, amountDue: f.amountDue
+    },
+    notes: $('ndNotes').value.trim(),
+    createdAt: Date.now()
+  };
+
+  DB.documents.push(doc);
+  saveDB();
+  ndLastSavedDoc = doc;
+  $('ndPdfBtn').removeAttribute('disabled');
+  $('ndDocNumber').value = docNumber;
+  onNdContextChange();
+  $('ndPdfBtn').removeAttribute('disabled');
+  markSaved();
+  alert('Saved ' + docNumber + '.');
+});
+
+$('ndPdfBtn').addEventListener('click', ()=>{ if(ndLastSavedDoc) generatePDF(ndLastSavedDoc); });
+
+/* ============================ ALL DOCUMENTS ============================ */
+function renderAllDocs(){
+  const body = $('allDocsBody');
+  const docs = [...DB.documents].sort((a,b)=>b.createdAt-a.createdAt);
+  if(docs.length === 0){ body.innerHTML=''; $('allDocsEmpty').classList.remove('hidden'); return; }
+  $('allDocsEmpty').classList.add('hidden');
+  body.innerHTML = docs.map(d=>{
+    const project = DB.projects.find(p=>p.id===d.projectId);
+    const client = project ? DB.companies.find(c=>c.id===project.companyId) : null;
+    return `<tr class="border-b border-[var(--line)]">
+      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
+      <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
+      <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
+      <td class="p-2">${escapeHtml(d.date)}</td>
+      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
+      <td class="p-2 text-right whitespace-nowrap">
+        <button data-id="${d.id}" class="adPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
+        <button data-id="${d.id}" class="adDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('.adPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{
+    const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc);
+  }));
+  body.querySelectorAll('.adDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
+    if(!confirm('Delete this document?')) return;
+    DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
+    saveDB(); renderAllDocs();
+  }));
+}
+
+/* ============================ PROJECT LEDGERS =========================== */
+$('hsCompanySelect').addEventListener('change', ()=>{
+  fillProjectSelect($('hsProjectSelect'), $('hsCompanySelect').value, '');
+  renderHistoryTab();
+});
+$('hsProjectSelect').addEventListener('change', renderHistoryTab);
+
+function renderHistoryTab(){
+  const project = DB.projects.find(p=>p.id === $('hsProjectSelect').value);
+  const ledgerCard = $('hsLedgerCard'); const docsCard = $('hsDocsCard');
+  if(!project){ ledgerCard.classList.add('hidden'); docsCard.classList.add('hidden'); return; }
+  const l = getProjectLedger(project);
+  ledgerCard.classList.remove('hidden'); docsCard.classList.remove('hidden');
+  $('hsLedgerBox').innerHTML = `
+    <div class="ledger-row"><span>Original Contract Total</span><span>${money(project.originalContractTotal)}</span></div>
+    <div class="ledger-row"><span>Approved Change Orders</span><span>${money(l.approvedCO)}</span></div>
+    <div class="ledger-row total"><span>Revised Contract Total</span><span>${money(l.revised)}</span></div>
+    <div class="ledger-row"><span>Total Billed to Date</span><span>${money(l.billed)}</span></div>
+    <div class="ledger-row"><span>Total Received to Date</span><span>${money(l.received)}</span></div>
+    <div class="ledger-row total"><span>Remaining Balance</span><span>${money(l.remaining)}</span></div>
+  `;
+  const docs = DB.documents.filter(d=>d.projectId===project.id).sort((a,b)=>a.createdAt-b.createdAt);
+  const body = $('hsDocsBody');
+  if(docs.length === 0){ body.innerHTML = ''; $('hsNoDocs').classList.remove('hidden'); }
+  else {
+    $('hsNoDocs').classList.add('hidden');
+    body.innerHTML = docs.map(d=>`
+      <tr class="border-b border-[var(--line)]">
+        <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
+        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
+        <td class="p-2">${escapeHtml(d.date)}</td>
+        <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
+        <td class="p-2 text-right whitespace-nowrap">
+          <button data-id="${d.id}" class="hsPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">Download PDF</button>
+          <button data-id="${d.id}" class="hsDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
+        </td>
+      </tr>`).join('');
+    body.querySelectorAll('.hsPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{
+      const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc);
+    }));
+    body.querySelectorAll('.hsDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(!confirm('Delete this document? This will also update the project ledger.')) return;
+      DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
+      saveDB(); renderHistoryTab();
+    }));
+  }
+}
+
+/* ============================ PDF GENERATION ============================ */
+function generatePDF(doc){
+  const project = DB.projects.find(p=>p.id===doc.projectId);
+  if(!project){ alert('Project not found for this document.'); return; }
+  const client = DB.companies.find(c=>c.id===project.companyId);
+  const ledger = getProjectLedger(project);
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit:'pt', format:'letter' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 40;
+  const BRAND = [168,64,78], GREY = [120,115,108], SHADE = [242,242,242], INK = [40,38,36];
+
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(16); pdf.setTextColor(...INK);
+  pdf.text(DB.myCompany.name || 'Your Company', margin, 46);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
+  let leftY = 62;
+  [DB.myCompany.address, DB.myCompany.phone, DB.myCompany.email, DB.myCompany.license ? ('License #' + DB.myCompany.license) : '']
+    .filter(Boolean).forEach(line => { pdf.text(line, margin, leftY); leftY += 12; });
+
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(26); pdf.setTextColor(...BRAND);
+  pdf.text(DOC_TITLE_MAP[doc.docType] || doc.docType, pageWidth - margin, 42, { align:'right' });
+
+  const meta = getMetaInfo(doc.docType, doc.docNumber, doc.date, doc.poReference, doc.dueDate, doc.financials);
+  pdf.autoTable({
+    startY: 54, margin: { left: pageWidth - margin - 220, right: margin }, tableWidth: 220,
+    theme: 'plain', styles: { fontSize: 9, cellPadding: 4, textColor: INK },
+    body: meta.rows,
+    columnStyles: { 0: { fillColor: SHADE, fontStyle:'bold', textColor:[90,85,80], cellWidth: 100 }, 1: { halign:'right', fontStyle:'bold' } },
+    didParseCell: function(data){ if(data.row.index === meta.rows.length - 1){ data.cell.styles.textColor = BRAND; data.cell.styles.fontSize = 10.5; } }
+  });
+
+  let y = Math.max(leftY + 12, pdf.lastAutoTable.finalY + 16);
+
+  pdf.setFillColor(...BRAND);
+  pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
+  pdf.text('BILL TO', margin + 6, y + 11.5);
+  y += 22;
+
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(...INK);
+  pdf.text(client ? client.companyName : 'Client not on file', margin, y);
+  y += 13;
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
+  const clientLines = client ? [client.address, [client.phone, client.email].filter(Boolean).join('  /  ')].filter(Boolean).join('\n') : '';
+  if(clientLines){
+    clientLines.split('\n').forEach(line => {
+      const wrapped = pdf.splitTextToSize(line, pageWidth - margin*2);
+      pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
+    });
+  }
+  y += 6;
+
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(9.5); pdf.setTextColor(...INK);
+  pdf.text(`PROJECT: ${project.projectName}`, margin, y, { maxWidth: pageWidth - margin*2 });
+  y += 13;
+  if(project.jobAddress){
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
+    project.jobAddress.split('\n').forEach(line => {
+      const wrapped = pdf.splitTextToSize(line, pageWidth - margin*2);
+      pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
+    });
+  }
+  y += 4;
+  if(doc.billingMode === 'LUMP_SUM' && doc.lumpSumSummary){
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
+    const wrapped = pdf.splitTextToSize(doc.lumpSumSummary, pageWidth - margin*2);
+    pdf.text(wrapped, margin, y); y += wrapped.length * 11 + 6;
+  } else y += 6;
+
+  if(doc.billingMode === 'ITEMIZED'){
+    pdf.autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
+      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
+      styles: { fontSize: 9, cellPadding: 5, textColor: INK },
+      alternateRowStyles: { fillColor: [252,250,249] },
+      body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
+      columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
+    });
+  } else {
+    pdf.autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['ITEMS','QUANTITY','PRICE','AMOUNT']],
+      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
+      styles: { fontSize: 9, cellPadding: 5, textColor: INK },
+      body: [[ doc.lineItems[0].description || 'Scope of Work', '1 ' + (doc.lineItems[0].unit || 'LS'), money(doc.lineItems[0].unitPrice), money(doc.lineItems[0].total) ]],
+      columnStyles: { 1:{halign:'center', cellWidth:70}, 2:{halign:'right', cellWidth:80}, 3:{halign:'right', cellWidth:80} }
+    });
+  }
+  y = pdf.lastAutoTable.finalY + 14;
+
+  const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments);
+  pdf.autoTable({
+    startY: y, margin: { left: pageWidth - margin - 240, right: margin }, tableWidth: 240,
+    theme: 'plain', styles: { fontSize: 9, cellPadding: 4 },
+    body: totals.rows,
+    columnStyles: { 0: { fontStyle:'bold', textColor:[70,65,60] }, 1: { halign:'right' } },
+    didParseCell: function(data){
+      if(totals.highlight.includes(data.row.raw[0])){
+        data.cell.styles.fillColor = BRAND; data.cell.styles.textColor = [255,255,255]; data.cell.styles.fontStyle = 'bold';
+      }
+    }
+  });
+  y = pdf.lastAutoTable.finalY + 20;
+
+  const notesText = doc.notes && doc.notes.trim() ? doc.notes.trim() : (doc.docType === 'INVOICE'
+    ? 'This invoice represents a progress payment for work completed to date in accordance with the project scope. Please remit payment by the due date above.'
+    : 'By signing below, the client accepts this document and authorizes work to proceed as outlined above. Any work outside this scope requires separate written authorization.');
+
+  const footerReserve = doc.docType === 'INVOICE' ? 60 : 100;
+  if(y > pageHeight - footerReserve - 70) { pdf.addPage(); y = 50; }
+
+  pdf.setFillColor(...BRAND);
+  pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
+  pdf.text('NOTES / TERMS', margin + 6, y + 11.5);
+  y += 24;
+
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(8.5); pdf.setTextColor(...INK);
+  pdf.text('PAYMENT TERMS & NOTES', margin, y);
+  y += 12;
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(...GREY);
+  const wrappedNotes = pdf.splitTextToSize(notesText, pageWidth - margin*2);
+  pdf.text(wrappedNotes, margin, y);
+  y += wrappedNotes.length * 11 + 10;
+
+  if(doc.docType !== 'INVOICE'){
+    const sigY = y + 26;
+    pdf.setDrawColor(160,160,160);
+    pdf.line(margin, sigY, margin + 220, sigY);
+    pdf.line(pageWidth - margin - 220, sigY, pageWidth - margin, sigY);
+    pdf.setFontSize(8.5); pdf.setTextColor(...GREY);
+    pdf.text('Client Signature & Date', margin, sigY + 12);
+    pdf.text('Authorized Signature & Date', pageWidth - margin - 220, sigY + 12);
+  }
+
+  pdf.setFillColor(...BRAND);
+  pdf.rect(0, pageHeight - 26, pageWidth, 26, 'F');
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(255,255,255);
+  const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('   •   ');
+  pdf.text(brandLine || 'Site Ledger', pageWidth/2, pageHeight - 17, { align:'center' });
+
+  pdf.save(`${doc.docNumber}.pdf`);
+}
+
+/* ============================ GLOBAL RENDER ============================ */
+function renderAllSelects(){
+  fillCompanySelect($('ndCompanySelect'));
+  fillProjectSelect($('ndProjectSelect'), $('ndCompanySelect').value);
+  fillCompanySelect($('mgCompanySelect'));
+  fillCompanySelect($('hsCompanySelect'));
+  fillProjectSelect($('hsProjectSelect'), $('hsCompanySelect').value);
+}
+
+function init(){
+  loadDB();
+  renderHeader();
+  loadMyCompanyForm();
+  renderAllSelects();
+  renderCompaniesList();
+  renderProjectsList();
+  renderLineItems();
+  $('ndDate').value = todayISO();
+  syncDocTypeTabs();
+  onNdContextChange();
+  markSaved();
+  switchView('newdoc');
+}
+
+init();
+</script>
+</body>
+</html>
