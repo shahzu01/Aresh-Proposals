@@ -187,6 +187,8 @@
           <option value="ALL">All</option>
           <option value="COMPLETED">Completed</option>
           <option value="ARCHIVED">Archived</option>
+          <option value="AWAITING_PROPOSAL">Awaiting Proposal</option>
+          <option value="AWAITING_PAYMENT">Awaiting Payment</option>
         </select>
       </div>
     </div>
@@ -883,6 +885,13 @@ function logActivity(projectId, activityType, description, documentId){
   DB.activityLog = DB.activityLog || [];
   DB.activityLog.push({ id: uid(), projectId, activityType, description, documentId: documentId || null, createdAt: Date.now() });
 }
+function assertProjectEditable(project){
+  if(project && project.archived){
+    alert('This project is archived and read-only. Open it in Project Detail and click "Unarchive" to create or edit documents, project info, or payments.');
+    return false;
+  }
+  return true;
+}
 
 function getProjectPayments(projectId){
   return (DB.payments || []).filter(p => p.projectId === projectId).sort((a,b)=> (a.date||'').localeCompare(b.date||'') || a.createdAt - b.createdAt);
@@ -1467,7 +1476,15 @@ function onNdContextChange(){
   if(project){
     const l = getProjectLedger(project);
     hint.classList.remove('hidden');
-    hint.textContent = `${project.projectCode}  ·  Revised contract: ${money(l.revised)}  ·  Billed to date: ${money(l.billed)}  ·  Remaining: ${money(l.remaining)}`;
+    if(project.archived){
+      hint.innerHTML = `⚠ ${escapeHtml(project.projectCode)} is <strong>archived</strong> and read-only — unarchive it in Project Detail to create or edit documents.`;
+      hint.style.color = 'var(--orange)';
+      $('ndSaveBtn').setAttribute('disabled','disabled');
+    } else {
+      hint.textContent = `${project.projectCode}  ·  Revised contract: ${money(l.revised)}  ·  Billed to date: ${money(l.billed)}  ·  Remaining: ${money(l.remaining)}`;
+      hint.style.color = '';
+      $('ndSaveBtn').removeAttribute('disabled');
+    }
     const year = new Date($('ndDate').value || Date.now()).getFullYear();
     if(!ndDocNumberTouched) $('ndDocNumber').value = peekNextGlobalDocNumber(docType, isNaN(year) ? new Date().getFullYear() : year);
     $('ndProjectDocNumberPreview').textContent = 'Project doc #: ' + peekNextProjectDocNumber(project, docType) + ' (auto)';
@@ -1475,6 +1492,7 @@ function onNdContextChange(){
     hint.classList.add('hidden');
     if(!ndDocNumberTouched) $('ndDocNumber').value = '';
     $('ndProjectDocNumberPreview').textContent = 'Project doc #: —';
+    $('ndSaveBtn').removeAttribute('disabled');
   }
 
   $('ndRelatedProposalRow').classList.toggle('hidden', docType !== 'CHANGE_ORDER');
@@ -1854,6 +1872,7 @@ function resetNewDocForm(){
 $('ndSaveBtn').addEventListener('click', ()=>{
   const project = getSelectedProject();
   if(!project){ alert('Select a client company and project first.'); return; }
+  if(!assertProjectEditable(project)) return;
   const docType = $('ndDocType').value;
 
   let lineItems;
@@ -2060,14 +2079,17 @@ function renderDashboard(){
   const awaitingProposal = projects.filter(p=>['Lead','Estimating'].includes(p.status));
   const awaitingPayment = projects.filter(p=>{ const l = getProjectLedger(p); return l.remaining > 0; });
 
-  const statTile = (label, value)=> `<div class="stat-tile"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></div>`;
+  const clickableStatTile = (label, value, filterValue)=> `<button data-filter="${filterValue}" class="stat-tile goToProjectsFilteredBtn text-left w-full hover:shadow-md transition-shadow"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></button>`;
   $('dashProjectsStats').innerHTML = [
-    statTile('Total Projects', projects.length),
-    statTile('Active', active.length),
-    statTile('Completed', completed.length),
-    statTile('Awaiting Proposal', awaitingProposal.length),
-    statTile('Awaiting Payment', awaitingPayment.length)
+    clickableStatTile('Total Projects', projects.length, 'ALL'),
+    clickableStatTile('Active', active.length, 'ACTIVE'),
+    clickableStatTile('Completed', completed.length, 'COMPLETED'),
+    clickableStatTile('Awaiting Proposal', awaitingProposal.length, 'AWAITING_PROPOSAL'),
+    clickableStatTile('Awaiting Payment', awaitingPayment.length, 'AWAITING_PAYMENT')
   ].join('');
+  $('dashProjectsStats').querySelectorAll('.goToProjectsFilteredBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToProjectsFiltered(btn.dataset.filter));
+  });
 
   let totalContract=0, totalCO=0, totalInvoiced=0, totalPaid=0, totalOutstandingInv=0, totalUnbilled=0, totalRemaining=0;
   projects.forEach(p=>{
@@ -2090,14 +2112,20 @@ function renderDashboard(){
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
       <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
-      <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
+      <td class="p-2">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
       <td class="p-2">${statusBadgeHtml(d.status)}</td>
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
     </tr>`;
   }).join('') : '<tr><td class="p-2 text-[#8a8375]" colspan="5">No documents yet.</td></tr>';
+  $('dashRecentDocsBody').querySelectorAll('.openProjectLinkBtn').forEach(btn=> btn.addEventListener('click', ()=> openProjectDetail(btn.dataset.id)));
 }
 
 /* ============================ PROJECTS GRID ============================ */
+function goToProjectsFiltered(filterValue){
+  switchView('projects');
+  $('projArchiveFilter').value = filterValue;
+  renderProjectsGrid();
+}
 $('projSearchBox').addEventListener('input', renderProjectsGrid);
 $('projArchiveFilter').addEventListener('change', renderProjectsGrid);
 function renderProjectsGrid(){
@@ -2107,6 +2135,8 @@ function renderProjectsGrid(){
   if(filterMode === 'ACTIVE') list = list.filter(p=> !p.archived && p.status !== 'Completed' && p.status !== 'Cancelled');
   else if(filterMode === 'COMPLETED') list = list.filter(p=> p.status === 'Completed');
   else if(filterMode === 'ARCHIVED') list = list.filter(p=> p.archived);
+  else if(filterMode === 'AWAITING_PROPOSAL') list = list.filter(p=> ['Lead','Estimating'].includes(p.status));
+  else if(filterMode === 'AWAITING_PAYMENT') list = list.filter(p=> getProjectLedger(p).remaining > 0);
   if(q){
     list = list.filter(p=>{
       const client = DB.companies.find(c=>c.id===p.companyId);
@@ -2196,15 +2226,44 @@ function renderProjectDetail(){
 
   // Overview tab
   const docs = DB.documents.filter(d=>d.projectId===project.id);
+  const isArchived = !!project.archived;
+  const addrParts = (project.jobAddress || '').split('\n');
   $('pdPanel-overview').innerHTML = `
     <div class="card p-4 sm:p-5">
-      <h3 class="font-head text-lg text-[var(--orange-dark)] mb-3">Project Info</h3>
-      <div class="grid sm:grid-cols-2 gap-3 text-sm">
-        <div><span class="text-xs text-[#8a8375] block">Client</span>${escapeHtml(client ? client.companyName : '—')}</div>
-        <div><span class="text-xs text-[#8a8375] block">Address</span>${escapeHtml(addressOneLine(project.jobAddress) || '—')}</div>
-        <div><span class="text-xs text-[#8a8375] block">Start Date</span>${escapeHtml(project.startDate || '—')}</div>
-        <div><span class="text-xs text-[#8a8375] block">Documents</span>${docs.length} total</div>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-head text-lg text-[var(--orange-dark)]">Project Info</h3>
+        ${isArchived ? '<span class="text-xs text-[var(--orange)]">Archived — unarchive to edit</span>' : ''}
       </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label class="field-label">Client Company</label>
+          <select id="pdEditCompany" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" ${isArchived?'disabled':''}></select>
+        </div>
+        <div>
+          <label class="field-label">Project Name</label>
+          <input id="pdEditName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" value="${escapeHtml(project.projectName)}" ${isArchived?'disabled':''}>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="field-label">Jobsite Address (3 lines)</label>
+          <div class="grid sm:grid-cols-3 gap-2">
+            <input id="pdEditAddr1" class="border border-[var(--line)] rounded px-3 py-2 text-sm" value="${escapeHtml(addrParts[0]||'')}" placeholder="Street address" ${isArchived?'disabled':''}>
+            <input id="pdEditAddr2" class="border border-[var(--line)] rounded px-3 py-2 text-sm" value="${escapeHtml(addrParts[1]||'')}" placeholder="City" ${isArchived?'disabled':''}>
+            <input id="pdEditAddr3" class="border border-[var(--line)] rounded px-3 py-2 text-sm" value="${escapeHtml(addrParts[2]||'')}" placeholder="State / ZIP" ${isArchived?'disabled':''}>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Start Date</label>
+          <input id="pdEditStart" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" value="${escapeHtml(project.startDate||'')}" ${isArchived?'disabled':''}>
+        </div>
+        <div>
+          <label class="field-label">Original Contract Total ($)</label>
+          <input id="pdEditContract" type="number" step="0.01" min="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" value="${project.originalContractTotal||0}" ${isArchived?'disabled':''}>
+        </div>
+      </div>
+      <div class="text-right mt-3">
+        <button id="pdSaveProjectInfoBtn" class="btn-primary text-xs px-4 py-2 rounded-md" ${isArchived?'disabled':''}>Save Project Info</button>
+      </div>
+      <p class="text-xs text-[#8a8375] mt-2">${docs.length} document${docs.length===1?'':'s'} on this project.</p>
     </div>
     <div class="card p-4 sm:p-5">
       <h3 class="font-head text-lg text-[var(--orange-dark)] mb-3">Document Mix</h3>
@@ -2214,6 +2273,22 @@ function renderProjectDetail(){
         <div class="stat-tile"><div class="stat-label">Change Orders</div><div class="stat-value">${docs.filter(d=>d.docType==='CHANGE_ORDER').length}</div></div>
       </div>
     </div>`;
+  fillCompanySelect($('pdEditCompany'), project.companyId);
+  if(!isArchived){
+    $('pdSaveProjectInfoBtn').addEventListener('click', ()=>{
+      project.companyId = $('pdEditCompany').value || project.companyId;
+      project.projectName = $('pdEditName').value.trim() || project.projectName;
+      project.jobAddress = joinAddressLines($('pdEditAddr1').value, $('pdEditAddr2').value, $('pdEditAddr3').value);
+      project.startDate = $('pdEditStart').value;
+      project.originalContractTotal = Number($('pdEditContract').value) || 0;
+      project.updatedAt = Date.now();
+      logActivity(project.id, 'PROJECT_EDITED', `Project info updated`, null);
+      saveDB();
+      renderAllSelects();
+      renderProjectDetail();
+      alert('Project info saved.');
+    });
+  }
 
   renderPdDocuments();
   renderPdPayments();
@@ -2418,9 +2493,9 @@ function renderAllDocs(){
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
       <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
-      <td class="p-2 font-mono text-xs">${escapeHtml(project ? project.projectCode : '—')}</td>
+      <td class="p-2 font-mono text-xs">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline text-[var(--orange-dark)]">${escapeHtml(project.projectCode)}</button>` : '—'}</td>
       <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
-      <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
+      <td class="p-2">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
       <td class="p-2">${escapeHtml(d.date)}</td>
       <td class="p-2">${statusSelectHtml(d, 'adStatusSelect')}</td>
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
@@ -2445,6 +2520,7 @@ function renderAllDocs(){
   body.querySelectorAll('.adConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   body.querySelectorAll('.adEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
   body.querySelectorAll('.adDupBtn').forEach(btn=> btn.addEventListener('click', ()=> duplicateDocument(btn.dataset.id)));
+  body.querySelectorAll('.openProjectLinkBtn').forEach(btn=> btn.addEventListener('click', ()=> openProjectDetail(btn.dataset.id)));
   wireRecordPaymentButtons(body, 'adRecordPaymentRowBtn');
   wireStatusSelects(body, renderAllDocs);
   wireVersionsButtons(body);
@@ -2456,6 +2532,7 @@ function convertToInvoice(sourceDocId){
   if(!src || src.docType !== 'PROPOSAL'){ alert('Only Proposals can be converted to an Invoice.'); return; }
   const project = DB.projects.find(p=>p.id===src.projectId);
   if(!project){ alert('Project not found for this proposal.'); return; }
+  if(!assertProjectEditable(project)) return;
 
   switchView('newdoc');
   $('ndCompanySelect').value = project.companyId;
@@ -2496,6 +2573,7 @@ function editDocument(docId){
   if(!doc){ alert('Document not found.'); return; }
   const project = DB.projects.find(p=>p.id===doc.projectId);
   if(!project){ alert('Project not found for this document.'); return; }
+  if(!assertProjectEditable(project)) return;
 
   switchView('newdoc');
   $('ndCompanySelect').value = project.companyId;
@@ -2762,6 +2840,7 @@ $('pmSaveBtn').addEventListener('click', ()=>{
   const documentId = appliedTo === 'OTHER' ? null : ($('pmDocument').value || null);
 
   const project = DB.projects.find(p=>p.id===pmProjectId);
+  if(!assertProjectEditable(project)) return;
   if(project){
     const existingAmount = pmEditingId ? ((DB.payments.find(x=>x.id===pmEditingId) || {}).amount || 0) : 0;
     const otherPayments = getTotalPayments(pmProjectId) - existingAmount;
