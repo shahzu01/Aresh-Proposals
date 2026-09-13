@@ -55,6 +55,14 @@
   .doctype-tab.active{ color:var(--orange-dark); border-bottom-color:var(--orange); font-weight:600; }
   .viewmode-btn{ font-size:.72rem; padding:.3rem .6rem; color:#6b675f; }
   .viewmode-btn.active{ background:var(--orange-dark); color:#fff; border-radius:6px; }
+  .pd-tab{ color:#8a8375; border-bottom:2px solid transparent; padding:.4rem .1rem; font-size:.85rem; white-space:nowrap; }
+  .pd-tab.active{ color:var(--orange-dark); border-bottom-color:var(--orange); font-weight:600; }
+  .pd-filter-chip{ font-size:.75rem; padding:.35rem .75rem; border:1px solid var(--line); border-radius:999px; color:#6b675f; background:#fff; }
+  .pd-filter-chip.active{ background:var(--orange-dark); color:#fff; border-color:var(--orange-dark); }
+  .stat-tile{ background:var(--concrete); border:1px solid var(--line); border-radius:8px; padding:.6rem .75rem; }
+  .stat-tile .stat-label{ font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; color:#8a8375; }
+  .stat-tile .stat-value{ font-size:1.05rem; font-weight:700; color:var(--orange-dark); margin-top:.15rem; }
+  .nav-btn-like{ cursor:pointer; }
 
   .view-panel{ display:flex; }
   .view-panel.hidden{ display:none; }
@@ -78,10 +86,11 @@
   #livePreview{ font-size:12px; line-height:1.4; color:#26241f; }
   #livePreview .pv-bar{ background:var(--orange); color:#fff; font-weight:700; font-size:10px; letter-spacing:.03em; text-transform:uppercase; padding:5px 8px; }
   #livePreview table{ width:100%; border-collapse:collapse; }
-  #livePreview .pv-meta td{ padding:4px 8px; font-size:10.5px; }
+  #livePreview table.pv-box{ width:260px; }
+  #livePreview .pv-meta td{ padding:5px 10px; font-size:10.5px; }
   #livePreview .pv-items th{ background:var(--orange); color:#fff; font-size:10px; text-transform:uppercase; text-align:left; padding:6px 8px; }
   #livePreview .pv-items td{ padding:6px 8px; border-bottom:1px solid var(--line); font-size:11px; }
-  #livePreview .pv-totals td{ padding:4px 8px; font-size:11px; }
+  #livePreview .pv-totals td{ padding:5px 10px; font-size:11px; }
   #livePreview .pv-highlight{ background:var(--orange); color:#fff; font-weight:700; }
 </style>
 </head>
@@ -94,6 +103,10 @@
     <p class="text-[10px] tracking-wide text-white/40 mt-1" id="hdrCompanyMeta">CONSTRUCTION DOCS</p>
   </div>
   <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+    <div>
+      <button data-nav="dashboard" class="nav-btn w-full text-left px-3 py-2 rounded-md">Dashboard</button>
+      <button data-nav="projects" class="nav-btn w-full text-left px-3 py-2 rounded-md">Projects</button>
+    </div>
     <div>
       <p class="px-2 text-[10px] uppercase tracking-wide text-white/30 mb-1">Documents</p>
       <button data-nav="alldocs" class="nav-btn w-full text-left px-3 py-2 rounded-md">All Documents</button>
@@ -118,6 +131,135 @@
 <!-- ============================== MAIN ============================== -->
 <main class="flex-1 h-screen overflow-hidden flex flex-col">
 
+  <!-- ===================== VIEW: DASHBOARD ===================== -->
+  <section id="view-dashboard" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
+      <p class="font-head text-xl">Dashboard</p>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Projects</h2>
+        <div id="dashProjectsStats" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+      </div>
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Financial Summary</h2>
+        <div id="dashFinancialStats" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+      </div>
+
+      <div class="card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-head text-lg text-[var(--orange-dark)]">Recently Modified Documents</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[600px]">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                <th class="p-2">Type</th><th class="p-2">Doc #</th><th class="p-2">Project</th><th class="p-2">Status</th><th class="p-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="dashRecentDocsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-4 sm:p-5">
+        <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Quick Actions</h2>
+        <div class="flex flex-wrap gap-2">
+          <button data-nav="manage" class="nav-btn-like btn-primary text-xs px-4 py-2 rounded-md">+ New Project</button>
+          <button data-nav="newdoc" data-doctype="PROPOSAL" class="nav-btn-like btn-ghost text-xs px-4 py-2 rounded-md">+ New Proposal</button>
+          <button data-nav="newdoc" data-doctype="INVOICE" class="nav-btn-like btn-ghost text-xs px-4 py-2 rounded-md">+ New Invoice</button>
+          <button data-nav="newdoc" data-doctype="CHANGE_ORDER" class="nav-btn-like btn-ghost text-xs px-4 py-2 rounded-md">+ New Change Order</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW: PROJECTS ===================== -->
+  <section id="view-projects" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <p class="font-head text-xl">Projects</p>
+      <div class="flex items-center gap-2 flex-wrap">
+        <input id="projSearchBox" class="border border-[var(--line)] rounded-md px-3 py-1.5 text-sm w-56" placeholder="Search projects…">
+        <select id="projArchiveFilter" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-sm">
+          <option value="ACTIVE">Active (default)</option>
+          <option value="ALL">All</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div id="projectsGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <p id="projectsGridEmpty" class="text-sm text-[#8a8375] mt-3 hidden">No projects match this view.</p>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW: PROJECT DETAIL ===================== -->
+  <section id="view-projectDetail" class="view-panel hidden flex-1 flex-col overflow-hidden">
+    <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
+      <p class="text-xs text-[#8a8375] mb-1">
+        <button data-nav="projects" class="nav-btn-like underline">Projects</button> &nbsp;›&nbsp; <span id="pdBreadcrumb">—</span>
+      </p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="font-head text-2xl leading-none" id="pdProjectCode">PRJ-2026-000</p>
+          <p class="text-sm text-[#6b675f] mt-0.5" id="pdProjectName">Project name</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select id="pdStatusSelect" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-sm"></select>
+          <button id="pdArchiveBtn" class="btn-ghost text-xs px-3 py-2 rounded-md">Archive</button>
+        </div>
+      </div>
+      <div id="pdFinancialStrip" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mt-3"></div>
+      <div class="flex gap-4 mt-3 border-t border-[var(--line)] pt-2 overflow-x-auto">
+        <button class="pd-tab" data-tab="overview">Overview</button>
+        <button class="pd-tab" data-tab="documents">Documents</button>
+        <button class="pd-tab" data-tab="activity">Activity</button>
+        <button class="pd-tab" data-tab="notes">Notes</button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div id="pdPanel-overview" class="pd-panel space-y-4"></div>
+      <div id="pdPanel-documents" class="pd-panel hidden space-y-3">
+        <div class="flex flex-wrap gap-2" id="pdDocTypeFilter">
+          <button data-type="ALL" class="pd-filter-chip active">All</button>
+          <button data-type="PROPOSAL" class="pd-filter-chip">Proposals</button>
+          <button data-type="INVOICE" class="pd-filter-chip">Invoices</button>
+          <button data-type="CHANGE_ORDER" class="pd-filter-chip">Change Orders</button>
+          <button data-type="OTHER_TYPES" class="pd-filter-chip">Other</button>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                  <th class="p-2">Type</th><th class="p-2">Doc #</th><th class="p-2">Date</th><th class="p-2">Status</th><th class="p-2 text-right">Grand Total</th><th class="p-2"></th>
+                </tr>
+              </thead>
+              <tbody id="pdDocsBody"></tbody>
+            </table>
+          </div>
+          <p id="pdDocsEmpty" class="text-sm text-[#8a8375] mt-3 hidden">No documents in this category yet.</p>
+        </div>
+      </div>
+      <div id="pdPanel-activity" class="pd-panel hidden">
+        <div class="card p-4 sm:p-5">
+          <div id="pdActivityList" class="space-y-3"></div>
+          <p id="pdActivityEmpty" class="text-sm text-[#8a8375] hidden">No activity recorded yet.</p>
+        </div>
+      </div>
+      <div id="pdPanel-notes" class="pd-panel hidden">
+        <div class="card p-4 sm:p-5">
+          <label class="field-label">Project Notes</label>
+          <textarea id="pdNotesText" rows="8" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></textarea>
+          <div class="text-right mt-2"><button id="pdNotesSaveBtn" class="btn-primary text-xs px-4 py-2 rounded-md">Save Notes</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== VIEW: NEW DOCUMENT ===================== -->
   <section id="view-newdoc" class="view-panel flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -131,6 +273,16 @@
           <button class="doctype-tab" data-doctype="CHANGE_ORDER">Change Order</button>
           <button class="doctype-tab" data-doctype="INVOICE">Invoice</button>
         </div>
+        <select id="ndMoreTypes" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs text-[#6b675f]">
+          <option value="">More types…</option>
+          <option value="CONTRACT">Contract</option>
+          <option value="ESTIMATE">Estimate</option>
+          <option value="PURCHASE_ORDER">Purchase Order</option>
+          <option value="PAY_APPLICATION">Pay Application</option>
+          <option value="RECEIPT">Receipt</option>
+          <option value="CREDIT">Credit</option>
+          <option value="OTHER">Other</option>
+        </select>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <div class="flex border border-[var(--line)] rounded-md overflow-hidden">
@@ -141,6 +293,12 @@
         <button id="ndPdfBtn" class="btn-ghost text-xs px-3 py-2 rounded-md" disabled>Download PDF</button>
         <button id="ndSaveBtn" class="btn-primary text-xs px-4 py-2 rounded-md font-medium">Save</button>
       </div>
+    </div>
+
+    <div id="ndEditBanner" class="hidden bg-[var(--concrete)] border-b border-[var(--line)] px-4 sm:px-6 py-2 flex flex-wrap items-center gap-3">
+      <span class="text-xs font-medium text-[var(--orange-dark)]" id="ndEditBannerLabel"></span>
+      <input id="ndRevisionReason" class="flex-1 min-w-[220px] border border-[var(--line)] rounded px-2 py-1.5 text-xs" placeholder="What changed in this revision? (optional)">
+      <button id="ndCancelEditBtn" class="btn-ghost text-xs px-3 py-1.5 rounded-md">Cancel Edit</button>
     </div>
 
     <div class="flex-1 flex overflow-hidden" id="ndWorkspace">
@@ -183,6 +341,10 @@
               <input id="ndHeadlineAmount" type="number" step="0.01" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm font-semibold">
               <p class="text-[11px] text-[#8a8375] mt-1">Defaults to the computed total below — type your own figure to override it.</p>
             </div>
+            <div>
+              <label class="field-label">Status</label>
+              <select id="ndStatus" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+            </div>
           </div>
           <select id="ndDocType" class="hidden">
             <option value="PROPOSAL">Proposal</option>
@@ -219,23 +381,37 @@
         </div>
 
         <div class="card p-4 sm:p-5">
-          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Line Items</h2>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm min-w-[560px]">
-              <thead>
-                <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
-                  <th class="p-1">Description</th>
-                  <th class="p-1 w-16">Qty</th>
-                  <th class="p-1 w-24">Unit</th>
-                  <th class="p-1 w-28">Unit Price</th>
-                  <th class="p-1 w-28 text-right">Amount</th>
-                  <th class="p-1 w-8"></th>
-                </tr>
-              </thead>
-              <tbody id="ndLineItemsBody"></tbody>
-            </table>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-head text-lg text-[var(--orange-dark)]">Pricing</h2>
+            <div class="flex rounded-md overflow-hidden border border-[var(--line)] text-xs">
+              <button id="ndModeLumpBtn" class="viewmode-btn active" style="border-radius:0">Lump Sum</button>
+              <button id="ndModeItemBtn" class="viewmode-btn" style="border-radius:0">Itemized</button>
+            </div>
           </div>
-          <button id="ndAddRowBtn" class="btn-ghost text-xs px-3 py-1.5 rounded mt-2">+ Add Line Item</button>
+
+          <div id="ndLumpPanel" class="sm:w-64">
+            <label class="field-label">Lump Sum Amount ($)</label>
+            <input id="ndLumpAmount" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+          </div>
+
+          <div id="ndItemPanel" class="hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[560px]">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                    <th class="p-1">Description</th>
+                    <th class="p-1 w-16">Qty</th>
+                    <th class="p-1 w-24">Unit</th>
+                    <th class="p-1 w-28">Unit Price</th>
+                    <th class="p-1 w-28 text-right">Amount</th>
+                    <th class="p-1 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody id="ndLineItemsBody"></tbody>
+              </table>
+            </div>
+            <button id="ndAddRowBtn" class="btn-ghost text-xs px-3 py-1.5 rounded mt-2">+ Add Line Item</button>
+          </div>
         </div>
 
         <div class="card p-4 sm:p-5">
@@ -304,21 +480,32 @@
   <!-- ===================== VIEW: ALL DOCUMENTS ===================== -->
   <section id="view-alldocs" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
-      <p class="font-head text-xl">All Documents</p>
+      <p class="font-head text-xl mb-2">All Documents</p>
+      <input id="adSearchBox" class="w-full border border-[var(--line)] rounded-md px-3 py-2 text-sm" placeholder="Search project ID, doc #, company, project, address, type, notes…">
+      <div class="flex flex-wrap gap-2 mt-2">
+        <select id="adFilterProject" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs"><option value="">All Projects</option></select>
+        <select id="adFilterCompany" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs"><option value="">All Companies</option></select>
+        <select id="adFilterType" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs"><option value="">All Types</option></select>
+        <select id="adFilterStatus" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs"><option value="">All Statuses</option></select>
+        <input id="adFilterDateFrom" type="date" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs" title="Date from">
+        <input id="adFilterDateTo" type="date" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs" title="Date to">
+        <button id="adFilterClear" class="btn-ghost text-xs px-3 py-1.5 rounded-md">Clear Filters</button>
+      </div>
     </div>
     <div class="flex-1 overflow-y-auto p-4 sm:p-6">
       <div class="card p-4 sm:p-5">
         <div class="overflow-x-auto">
-          <table class="w-full text-sm min-w-[720px]">
+          <table class="w-full text-sm min-w-[760px]">
             <thead>
               <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
-                <th class="p-2">Type</th>
-                <th class="p-2">Doc #</th>
-                <th class="p-2">Project ID</th>
-                <th class="p-2">Client</th>
-                <th class="p-2">Project</th>
-                <th class="p-2">Date</th>
-                <th class="p-2 text-right">Grand Total</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="docType">Type</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="docNumber">Doc #</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="projectCode">Project ID</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="company">Client</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="project">Project</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="date">Date</th>
+                <th class="p-2 ad-sort cursor-pointer select-none" data-key="status">Status</th>
+                <th class="p-2 text-right ad-sort cursor-pointer select-none" data-key="amount">Grand Total</th>
                 <th class="p-2"></th>
               </tr>
             </thead>
@@ -363,6 +550,7 @@
                 <th class="p-2">Type</th>
                 <th class="p-2">Doc #</th>
                 <th class="p-2">Date</th>
+                <th class="p-2">Status</th>
                 <th class="p-2 text-right">Grand Total</th>
                 <th class="p-2"></th>
               </tr>
@@ -434,6 +622,7 @@
             </div>
           </div>
           <div><label class="field-label">Original Contract Total ($)</label><input id="projContract" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
+          <div><label class="field-label">Project Status</label><select id="projStatus" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select></div>
           <div class="sm:col-span-2 text-right"><button type="submit" class="btn-primary px-4 py-2 rounded text-sm">+ Add Project</button></div>
         </form>
         <div id="projectsList" class="mt-4 space-y-2"></div>
@@ -441,6 +630,16 @@
     </div>
   </section>
 
+  <!-- ===================== VERSION HISTORY MODAL ===================== -->
+  <div id="versionsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.45)">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--line)]">
+        <p class="font-head text-lg text-[var(--orange-dark)]" id="versionsModalTitle">Version History</p>
+        <button id="versionsModalClose" class="text-[#8a8375] text-xl leading-none px-2">&times;</button>
+      </div>
+      <div id="versionsModalBody" class="overflow-y-auto p-4 space-y-3"></div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -466,7 +665,8 @@ function defaultDB(){
     companies: [],
     projects:  [],
     documents: [],
-    meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 2 }
+    activityLog: [],
+    meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 4 }
   };
 }
 
@@ -478,6 +678,7 @@ function loadDB(){
     DB.companies = DB.companies || [];
     DB.projects  = DB.projects  || [];
     DB.documents = DB.documents || [];
+    DB.activityLog = DB.activityLog || [];
     DB.meta = DB.meta || { nextProjectSeq: 1 };
     DB.meta.projectCounters = DB.meta.projectCounters || {};
     DB.meta.docCounters = DB.meta.docCounters || {};
@@ -512,20 +713,46 @@ function sanitizeFilenamePart(str){
     .replace(/\s+/g, '-');
 }
 
-const DOC_TITLE_MAP = { PROPOSAL:'PROPOSAL', CHANGE_ORDER:'CHANGE ORDER', INVOICE:'INVOICE' };
-const DOC_NUMBER_LABEL_MAP = { PROPOSAL:'Proposal #', CHANGE_ORDER:'Change Order #', INVOICE:'Invoice #' };
-const DOC_TYPE_LABEL = { PROPOSAL:'Proposal', CHANGE_ORDER:'Change Order', INVOICE:'Invoice' };
-const HEADLINE_LABEL_MAP = { PROPOSAL:'Amount Due ($)', CHANGE_ORDER:'Grand Total ($)', INVOICE:'Current Due ($)' };
-const DOC_TYPE_CODE = { PROPOSAL:'PROP', CHANGE_ORDER:'CO', INVOICE:'INV' };
+const DOC_TITLE_MAP = { PROPOSAL:'PROPOSAL', CHANGE_ORDER:'CHANGE ORDER', INVOICE:'INVOICE', CONTRACT:'CONTRACT', ESTIMATE:'ESTIMATE', PURCHASE_ORDER:'PURCHASE ORDER', PAY_APPLICATION:'PAY APPLICATION', RECEIPT:'RECEIPT', CREDIT:'CREDIT', OTHER:'DOCUMENT' };
+const DOC_NUMBER_LABEL_MAP = { PROPOSAL:'Proposal #', CHANGE_ORDER:'Change Order #', INVOICE:'Invoice #', CONTRACT:'Contract #', ESTIMATE:'Estimate #', PURCHASE_ORDER:'P.O. #', PAY_APPLICATION:'Pay App #', RECEIPT:'Receipt #', CREDIT:'Credit #', OTHER:'Doc #' };
+const DOC_TYPE_LABEL = { PROPOSAL:'Proposal', CHANGE_ORDER:'Change Order', INVOICE:'Invoice', CONTRACT:'Contract', ESTIMATE:'Estimate', PURCHASE_ORDER:'Purchase Order', PAY_APPLICATION:'Pay Application', RECEIPT:'Receipt', CREDIT:'Credit', OTHER:'Other' };
+const HEADLINE_LABEL_MAP = { PROPOSAL:'Amount Due ($)', CHANGE_ORDER:'Grand Total ($)', INVOICE:'Current Due ($)', CONTRACT:'Grand Total ($)', ESTIMATE:'Grand Total ($)', PURCHASE_ORDER:'Grand Total ($)', PAY_APPLICATION:'Grand Total ($)', RECEIPT:'Grand Total ($)', CREDIT:'Grand Total ($)', OTHER:'Grand Total ($)' };
+const DOC_TYPE_CODE = { PROPOSAL:'PROP', CHANGE_ORDER:'CO', INVOICE:'INV', CONTRACT:'CONT', ESTIMATE:'EST', PURCHASE_ORDER:'PO', PAY_APPLICATION:'PAYAPP', RECEIPT:'REC', CREDIT:'CR', OTHER:'DOC' };
+
+const STATUS_OPTIONS_MAP = {
+  PROPOSAL: ['Draft','Sent','Viewed','Accepted','Rejected','Expired','Cancelled'],
+  INVOICE: ['Draft','Issued','Partially Paid','Paid','Past Due','Void','Cancelled'],
+  CHANGE_ORDER: ['Draft','Submitted','Pending Approval','Approved','Rejected','Cancelled'],
+  DEFAULT: ['Draft','Active','Completed','Cancelled']
+};
+function getStatusOptions(docType){ return STATUS_OPTIONS_MAP[docType] || STATUS_OPTIONS_MAP.DEFAULT; }
+const PROJECT_STATUS_OPTIONS = ['Lead','Estimating','Proposal Sent','Proposal Accepted','Active','On Hold','Completed','Cancelled'];
+function statusBadgeColor(status){
+  const s = (status||'').toLowerCase();
+  if(['approved','accepted','paid','completed'].includes(s)) return { bg:'#E4F1E8', fg:'#2E6B45' };
+  if(['rejected','void','cancelled','past due'].includes(s)) return { bg:'#F7E4E4', fg:'#A8404E' };
+  if(['sent','submitted','pending approval','viewed','issued','partially paid','active'].includes(s)) return { bg:'#FDF1DC', fg:'#946A1E' };
+  return { bg:'#EDEBE7', fg:'#6b675f' };
+}
+function statusBadgeHtml(status){
+  if(!status) return '';
+  const c = statusBadgeColor(status);
+  return `<span class="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:${c.bg};color:${c.fg}">${escapeHtml(status)}</span>`;
+}
 
 /* ------------------------- Project ledger math ------------------------ */
+function logActivity(projectId, activityType, description, documentId){
+  DB.activityLog = DB.activityLog || [];
+  DB.activityLog.push({ id: uid(), projectId, activityType, description, documentId: documentId || null, createdAt: Date.now() });
+}
+
 function getProjectLedger(project){
   if(!project) return { approvedCO:0, revised:0, billed:0, received:0, remaining:0 };
-  const cos = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER');
+  const cos = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER' && d.status === 'Approved');
   const approvedCO = cos.reduce((s,d) => s + d.financials.grandTotal, 0);
   const original = Number(project.originalContractTotal) || 0;
   const revised = original + approvedCO;
-  const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE');
+  const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE' && !['Void','Cancelled'].includes(d.status));
   const billed = invs.reduce((s,d) => s + d.financials.currentDue, 0);
   const received = billed;
   const remaining = revised - received;
@@ -583,38 +810,65 @@ function buildFilename(doc, project, client){
    once schemaVersion is current, and never deletes or overwrites existing data. */
 function migrateSchema(){
   DB.meta = DB.meta || {};
-  if((DB.meta.schemaVersion || 0) >= 2) return;
   DB.meta.projectCounters = DB.meta.projectCounters || {};
   DB.meta.docCounters = DB.meta.docCounters || {};
   const currentYear = new Date().getFullYear();
 
-  DB.projects.forEach(p=>{
-    if(!p.projectCode){
-      const y = p.startDate ? new Date(p.startDate).getFullYear() : currentYear;
-      p.projectCode = generateProjectCode(isNaN(y) ? currentYear : y);
-    }
-    p.createdAt = p.createdAt || Date.now();
-    p.updatedAt = p.updatedAt || Date.now();
-    p.docCounters = p.docCounters || {};
-  });
+  if((DB.meta.schemaVersion || 0) < 2){
+    DB.projects.forEach(p=>{
+      if(!p.projectCode){
+        const y = p.startDate ? new Date(p.startDate).getFullYear() : currentYear;
+        p.projectCode = generateProjectCode(isNaN(y) ? currentYear : y);
+      }
+      p.createdAt = p.createdAt || Date.now();
+      p.updatedAt = p.updatedAt || Date.now();
+      p.docCounters = p.docCounters || {};
+    });
 
-  const legacyPattern = /^(PROP|CO|INV)-\d{4}-\d{5}$/;
-  const toMigrate = DB.documents.filter(d => !d.projectNumber).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
-  toMigrate.forEach(d=>{
-    const project = DB.projects.find(p=>p.id===d.projectId);
-    const y = d.date ? new Date(d.date).getFullYear() : currentYear;
-    const year = isNaN(y) ? currentYear : y;
-    if(!legacyPattern.test(d.docNumber || '')){
-      d.legacyDocNumber = d.docNumber;
-      d.docNumber = commitGlobalDocNumber(d.docType, year);
-    }
-    d.projectNumber = project ? commitProjectDocNumber(project, d.docType) : (d.projectNumber || '—');
-    d.revisionNumber = d.revisionNumber || 0;
-    d.generatedFrom = d.generatedFrom || null;
-    d.updatedAt = d.updatedAt || d.createdAt || Date.now();
-  });
+    const legacyPattern = /^(PROP|CO|INV)-\d{4}-\d{5}$/;
+    const toMigrate = DB.documents.filter(d => !d.projectNumber).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+    toMigrate.forEach(d=>{
+      const project = DB.projects.find(p=>p.id===d.projectId);
+      const y = d.date ? new Date(d.date).getFullYear() : currentYear;
+      const year = isNaN(y) ? currentYear : y;
+      if(!legacyPattern.test(d.docNumber || '')){
+        d.legacyDocNumber = d.docNumber;
+        d.docNumber = commitGlobalDocNumber(d.docType, year);
+      }
+      d.projectNumber = project ? commitProjectDocNumber(project, d.docType) : (d.projectNumber || '—');
+      d.revisionNumber = d.revisionNumber || 0;
+      d.generatedFrom = d.generatedFrom || null;
+      d.updatedAt = d.updatedAt || d.createdAt || Date.now();
+    });
 
-  DB.meta.schemaVersion = 2;
+    DB.meta.schemaVersion = 2;
+  }
+
+  if((DB.meta.schemaVersion || 0) < 3){
+    // Legacy documents (created before status/versioning existed) get a status that
+    // preserves their prior effect on the project ledger — Change Orders keep counting
+    // as approved, invoices keep counting as billed — rather than silently zeroing out
+    // contract math that was already correct under the old rules.
+    const legacyDefaultStatus = { PROPOSAL:'Sent', CHANGE_ORDER:'Approved', INVOICE:'Issued' };
+    DB.documents.forEach(d=>{
+      if(!d.status) d.status = legacyDefaultStatus[d.docType] || 'Draft';
+      if(d.revisionNumber === undefined) d.revisionNumber = 0;
+      if(!d.versions) d.versions = [];
+      if(d.generatedFrom === undefined) d.generatedFrom = null;
+    });
+    DB.meta.schemaVersion = 3;
+  }
+
+  if((DB.meta.schemaVersion || 0) < 4){
+    DB.projects.forEach(p=>{
+      if(!p.status) p.status = 'Active';
+      if(p.archived === undefined) p.archived = false;
+      if(p.notes === undefined) p.notes = '';
+    });
+    DB.activityLog = DB.activityLog || [];
+    DB.meta.schemaVersion = 4;
+  }
+
   saveDB();
 }
 
@@ -645,27 +899,27 @@ function buildTotalsRows(f, docType, project, ledger, adj){
     rows.push(['Contract Before This CO:', money(before)]);
     rows.push(['Revised Contract Total:', money(ledger ? ledger.revised : 0)]);
     highlight.push('Revised Contract Total:');
-  } else {
+  } else if(docType === 'INVOICE'){
     rows.push(['Subtotal:', money(f.subtotal + f.totalAdjustments)]);
     rows.push(['Previously Received:', '(' + money(f.previouslyReceived) + ')']);
     rows.push(['Current Payment Due:', money(f.currentDue)]);
     rows.push(['Remaining Balance:', money(f.remainingBalance)]);
     highlight.push('Current Payment Due:', 'Remaining Balance:');
+  } else {
+    rows.push(['Grand Total:', money(f.grandTotal)]);
+    highlight.push('Grand Total:');
   }
   return { rows, highlight };
 }
 function getMetaInfo(docType, docNumber, dateStr, po, dueVal, f){
   const rows = [
     [DOC_NUMBER_LABEL_MAP[docType], docNumber || '—'],
-    ['Date', formatDateLong(dateStr)],
-    ['P.O. / S.O.', po || '—']
+    ['Date', formatDateLong(dateStr)]
   ];
+  if(po && po.trim()) rows.push(['P.O. / S.O.', po]);
   const dueLabel = docType === 'PROPOSAL' ? 'Valid Until' : 'Due Date';
-  let dueDisplay;
-  if(dueVal === 'UPON_RECEIPT') dueDisplay = 'Due Upon Receipt';
-  else if(!dueVal) dueDisplay = '—';
-  else dueDisplay = formatDateLong(dueVal);
-  rows.push([dueLabel, dueDisplay]);
+  if(dueVal === 'UPON_RECEIPT') rows.push([dueLabel, 'Due Upon Receipt']);
+  else if(dueVal) rows.push([dueLabel, formatDateLong(dueVal)]);
   const amountLabel = docType === 'INVOICE' ? 'Current Due' : (docType === 'PROPOSAL' ? 'Amount Due' : 'Grand Total');
   const amountValue = docType === 'INVOICE' ? f.currentDue : (docType === 'PROPOSAL' ? f.amountDue : f.grandTotal);
   rows.push([amountLabel, money(amountValue)]);
@@ -673,13 +927,35 @@ function getMetaInfo(docType, docNumber, dateStr, po, dueVal, f){
 }
 
 /* ============================ NAVIGATION ============================ */
-function switchView(target){
+let ndCurrentProjectDetailId = null;
+function switchView(target, opts){
+  opts = opts || {};
   document.querySelectorAll('.view-panel').forEach(p=>p.classList.add('hidden'));
   $('view-' + target).classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav === target));
   if(target === 'alldocs') renderAllDocs();
   if(target === 'ledgers') renderHistoryTab();
   if(target === 'manage'){ renderCompaniesList(); renderProjectsList(); }
+  if(target === 'dashboard') renderDashboard();
+  if(target === 'projects') renderProjectsGrid();
+  if(!opts.skipHash) updateHash(target, opts.projectId);
+}
+function updateHash(target, projectId){
+  const parts = ['#', target];
+  if(target === 'projectDetail' && projectId) parts.push('/', projectId);
+  const newHash = parts.join('');
+  if(location.hash !== newHash) history.pushState(null, '', newHash);
+}
+window.addEventListener('popstate', ()=> routeFromHash(true));
+function routeFromHash(skipHash){
+  const raw = location.hash.replace(/^#/, '');
+  const [target, id] = raw.split('/');
+  const validTargets = ['dashboard','projects','projectDetail','alldocs','ledgers','manage','newdoc'];
+  if(target === 'projectDetail' && id && DB.projects.some(p=>p.id===id)){
+    openProjectDetail(id, { skipHash: true });
+  } else if(validTargets.includes(target)){
+    switchView(target, { skipHash: true });
+  }
 }
 document.querySelectorAll('.nav-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -692,20 +968,46 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
     switchView(btn.dataset.nav);
   });
 });
+// Delegated handler for in-content nav-like buttons (breadcrumbs, dashboard quick actions)
+document.body.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.nav-btn-like[data-nav]');
+  if(!btn) return;
+  if(btn.dataset.doctype){
+    $('ndDocType').value = btn.dataset.doctype;
+    syncDocTypeTabs();
+    resetFieldOverrides();
+    onNdContextChange();
+  }
+  switchView(btn.dataset.nav);
+});
 
 document.querySelectorAll('.doctype-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     $('ndDocType').value = tab.dataset.doctype;
+    $('ndMoreTypes').value = '';
     syncDocTypeTabs();
     resetFieldOverrides();
     onNdContextChange();
   });
 });
+$('ndMoreTypes').addEventListener('change', ()=>{
+  if(!$('ndMoreTypes').value) return;
+  $('ndDocType').value = $('ndMoreTypes').value;
+  syncDocTypeTabs();
+  resetFieldOverrides();
+  onNdContextChange();
+});
 function syncDocTypeTabs(){
   const dt = $('ndDocType').value;
   document.querySelectorAll('.doctype-tab').forEach(t=> t.classList.toggle('active', t.dataset.doctype === dt));
+  if(['PROPOSAL','CHANGE_ORDER','INVOICE'].includes(dt)) $('ndMoreTypes').value = '';
   $('ndDueDateLabel').textContent = dt === 'PROPOSAL' ? 'Valid Until' : 'Due Date';
   $('ndHeadlineLabel').textContent = HEADLINE_LABEL_MAP[dt];
+  const statusSel = $('ndStatus');
+  const prevStatus = statusSel.value;
+  const options = getStatusOptions(dt);
+  statusSel.innerHTML = options.map(s=>`<option value="${s}">${s}</option>`).join('');
+  statusSel.value = options.includes(prevStatus) ? prevStatus : options[0];
 }
 
 document.querySelectorAll('.viewmode-btn[data-mode]').forEach(btn=>{
@@ -812,13 +1114,16 @@ $('addProjectForm').addEventListener('submit', (e)=>{
   const name = $('projName').value.trim();
   if(!name) return;
   const now = Date.now();
-  DB.projects.push({
+  const project = {
     id: uid(), seq: DB.meta.nextProjectSeq++, companyId, projectName: name,
     projectCode: generateProjectCode(new Date().getFullYear()),
     jobAddress: joinAddressLines($('projAddress1').value, $('projAddress2').value, $('projAddress3').value), startDate: $('projStart').value,
     originalContractTotal: Number($('projContract').value) || 0,
+    status: $('projStatus').value || 'Lead', archived: false, notes: '',
     docCounters: {}, createdAt: now, updatedAt: now
-  });
+  };
+  DB.projects.push(project);
+  logActivity(project.id, 'PROJECT_CREATED', `Project ${project.projectCode} created`, null);
   saveDB(); e.target.reset(); $('projContract').value = 0;
   renderAllSelects(); renderProjectsList();
 });
@@ -834,8 +1139,8 @@ function renderProjectsList(){
     return `<div class="border border-[var(--line)] rounded-lg p-3">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="text-[11px] font-mono text-[var(--orange-dark)] font-semibold">${escapeHtml(p.projectCode || '—')}</p>
-          <p class="font-medium text-sm truncate">${escapeHtml(p.projectName)}</p>
+          <p class="text-[11px] font-mono text-[var(--orange-dark)] font-semibold">${escapeHtml(p.projectCode || '—')} ${statusBadgeHtml(p.status)}${p.archived ? ' <span class="text-[10px] text-[#8a8375]">(archived)</span>' : ''}</p>
+          <button data-id="${p.id}" class="openProjectBtn font-medium text-sm truncate text-left hover:underline">${escapeHtml(p.projectName)}</button>
           <p class="text-xs text-[#8a8375] truncate">${escapeHtml(addressOneLine(p.jobAddress) || '—')}</p>
         </div>
         <button data-id="${p.id}" class="delProjectBtn text-xs text-[var(--orange)] shrink-0 px-2 py-1">Remove</button>
@@ -848,6 +1153,7 @@ function renderProjectsList(){
       </div>
     </div>`;
   }).join('');
+  box.querySelectorAll('.openProjectBtn').forEach(btn=> btn.addEventListener('click', ()=> openProjectDetail(btn.dataset.id)));
   box.querySelectorAll('.delProjectBtn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const id = btn.dataset.id;
@@ -861,12 +1167,20 @@ function renderProjectsList(){
 
 /* ============================ NEW DOCUMENT ============================= */
 let ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
+let ndBillingMode = 'LUMP_SUM';
 let ndDocNumberTouched = false;
 let ndHeadlineTouched = false;
 let ndLastSavedDoc = null;
 let ndGeneratedFrom = null;
+let ndEditingDoc = null;
 
-function resetFieldOverrides(){ ndDocNumberTouched = false; ndHeadlineTouched = false; ndGeneratedFrom = null; }
+function resetFieldOverrides(){
+  ndDocNumberTouched = false; ndHeadlineTouched = false; ndGeneratedFrom = null; ndEditingDoc = null;
+  $('ndDocNumber').disabled = false;
+  $('ndEditBanner').classList.add('hidden');
+  $('ndRevisionReason').value = '';
+  $('ndSaveBtn').textContent = 'Save';
+}
 function getSelectedProject(){ return DB.projects.find(p=>p.id === $('ndProjectSelect').value) || null; }
 function getSelectedClient(project){ return project ? DB.companies.find(c=>c.id===project.companyId) : null; }
 function getCurrentAdjustments(){
@@ -975,6 +1289,17 @@ function unitOptionsHtml(currentUnit){
   return html;
 }
 
+$('ndModeLumpBtn').addEventListener('click', ()=> setBillingMode('LUMP_SUM'));
+$('ndModeItemBtn').addEventListener('click', ()=> setBillingMode('ITEMIZED'));
+function setBillingMode(mode){
+  ndBillingMode = mode;
+  $('ndModeLumpBtn').classList.toggle('active', mode==='LUMP_SUM');
+  $('ndModeItemBtn').classList.toggle('active', mode==='ITEMIZED');
+  $('ndLumpPanel').classList.toggle('hidden', mode!=='LUMP_SUM');
+  $('ndItemPanel').classList.toggle('hidden', mode!=='ITEMIZED');
+  recalcLedger();
+}
+
 function renderLineItems(){
   const body = $('ndLineItemsBody');
   body.innerHTML = ndLineItems.map((li,i)=>{
@@ -1018,11 +1343,13 @@ $('ndLineItemsBody').addEventListener('click', (e)=>{
   }
 });
 
-['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit']
+['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit','ndLumpAmount']
   .forEach(id => $(id).addEventListener('input', recalcLedger));
 
 function computeFinancials(){
-  const subtotal = ndLineItems.reduce((s,li)=> s + (Number(li.qty)||0) * (Number(li.unitPrice)||0), 0);
+  const subtotal = ndBillingMode === 'LUMP_SUM'
+    ? (Number($('ndLumpAmount').value) || 0)
+    : ndLineItems.reduce((s,li)=> s + (Number(li.qty)||0) * (Number(li.unitPrice)||0), 0);
   const adj = getCurrentAdjustments();
   const pctAmt = subtotal * (adj.taxPercent + adj.overheadPercent + adj.bondingPercent + adj.insurancePercent) / 100;
   const flatAmt = adj.scaffoldingFee + adj.riggingFee + adj.extraLabor + adj.extraMaterials;
@@ -1039,15 +1366,14 @@ function computeFinancials(){
     depositAmount = Number($('ndDeposit').value) || 0;
     const defaultAmountDue = rawGrandTotal - depositAmount;
     amountDue = headlineOverride !== null ? headlineOverride : defaultAmountDue;
-  }
-  if(docType === 'CHANGE_ORDER'){
-    grandTotal = headlineOverride !== null ? headlineOverride : rawGrandTotal;
-  }
-  if(docType === 'INVOICE' && project){
+  } else if(docType === 'INVOICE' && project){
     const l = getProjectLedger(project);
     previouslyReceived = l.received;
     currentDue = headlineOverride !== null ? headlineOverride : rawGrandTotal;
     remainingBalance = l.revised - previouslyReceived - currentDue;
+  } else {
+    // Change Order and all other generic document types: headline amount IS the grand total.
+    grandTotal = headlineOverride !== null ? headlineOverride : rawGrandTotal;
   }
   return { subtotal, totalAdjustments, grandTotal, previouslyReceived, currentDue, remainingBalance, depositAmount, amountDue };
 }
@@ -1104,7 +1430,8 @@ function renderLivePreview(){
   const meta = getMetaInfo(docType, docNumber, $('ndDate').value, $('ndPO').value, getCurrentDueVal(), f);
   const metaRowsHtml = meta.rows.map((r,i)=>{
     const isLast = i === meta.rows.length - 1;
-    return `<tr><td class="bg-[var(--shade)] font-bold" style="color:#5a554f">${escapeHtml(r[0])}</td>
+    const stripe = i % 2 === 0 ? 'background:var(--shade)' : 'background:#fff';
+    return `<tr style="${stripe}"><td class="font-bold" style="color:#5a554f">${escapeHtml(r[0])}</td>
       <td class="text-right ${isLast?'font-bold':''}" style="${isLast?'color:var(--orange)':''}">${escapeHtml(r[1])}</td></tr>`;
   }).join('');
 
@@ -1118,6 +1445,10 @@ function renderLivePreview(){
     const amt = (Number(li.qty)||0) * (Number(li.unitPrice)||0);
     return `<tr><td>${escapeHtml(li.description||'—')}</td><td>${escapeHtml(String(li.qty||''))}</td><td>${escapeHtml(li.unit||'')}</td><td class="text-right">${money(li.unitPrice)}</td><td class="text-right">${money(amt)}</td></tr>`;
   }).join('');
+  const lumpAmount = Number($('ndLumpAmount').value) || 0;
+  const pricingSectionHtml = ndBillingMode === 'LUMP_SUM'
+    ? `<div class="flex justify-between items-center mb-3" style="background:var(--orange);color:#fff;font-weight:700;font-size:11px;padding:8px 10px"><span>Lump Sum Amount</span><span>${money(lumpAmount)}</span></div>`
+    : `<table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>`;
 
   const totals = buildTotalsRows(f, docType, project, ledger, adj);
   const totalsRowsHtml = totals.rows.map(r=>{
@@ -1125,9 +1456,11 @@ function renderLivePreview(){
     return `<tr class="${isHi?'pv-highlight':''}"><td class="font-bold" style="${isHi?'':'color:#4a4540'}">${escapeHtml(r[0])}</td><td class="text-right ${isHi?'font-bold':''}">${escapeHtml(r[1])}</td></tr>`;
   }).join('');
 
-  const notesText = $('ndNotes').value.trim() || (docType === 'INVOICE'
-    ? 'This invoice represents a progress payment for work completed to date in accordance with the project scope. Please remit payment by the due date above.'
-    : 'By signing below, the client accepts this document and authorizes work to proceed as outlined above. Any work outside this scope requires separate written authorization.');
+  const notesRaw = $('ndNotes').value.trim();
+  const notesSectionHtml = notesRaw ? `
+    <div class="pv-bar mb-2">Notes / Terms</div>
+    <p class="font-bold text-[11px] mb-1">Payment Terms &amp; Notes</p>
+    <p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(notesRaw)}</p>` : '';
 
   const signatureHtml = docType !== 'INVOICE' ? `
     <div class="flex justify-between mt-8 text-[10.5px]" style="color:#6e675d">
@@ -1148,22 +1481,21 @@ function renderLivePreview(){
       <p class="font-head font-bold text-3xl" style="color:var(--orange)">${DOC_TITLE_MAP[docType]}</p>
     </div>
     <div class="flex justify-end mb-4">
-      <table class="pv-meta w-64"><tbody>${metaRowsHtml}</tbody></table>
+      <table class="pv-meta pv-box"><tbody>${metaRowsHtml}</tbody></table>
     </div>
     <div class="pv-bar mb-2">Bill To</div>
     <p class="font-bold text-sm">${client ? escapeHtml(client.companyName) : 'Client not on file'}</p>
     <p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientAddrOneLine)}</p>
-    ${clientContactLine ? `<p class="text-[11px] mb-3" style="color:#6e675d">${escapeHtml(clientContactLine)}</p>` : '<div class="mb-3"></div>'}
+    ${clientContactLine ? `<p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientContactLine)}</p>` : ''}
+    <div style="border-top:1px solid var(--line)" class="my-3"></div>
     <p class="font-bold text-[12px] mb-1">PROJECT: ${project ? escapeHtml(project.projectName) : '—'}${project && project.projectCode ? `  <span class="font-normal" style="color:#8a8375">(${escapeHtml(project.projectCode)})</span>` : ''}</p>
     ${projectAddrOneLine ? `<p class="text-[11px] mb-2" style="color:#6e675d">${escapeHtml(projectAddrOneLine)}</p>` : ''}
     ${scopeHtml ? `<div class="text-[11px] mb-3 nd-scope-render" style="color:#4a4540">${scopeHtml}</div>` : ''}
-    <table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>
+    ${pricingSectionHtml}
     <div class="flex justify-end mb-4">
-      <table class="pv-totals w-64"><tbody>${totalsRowsHtml}</tbody></table>
+      <table class="pv-totals pv-box"><tbody>${totalsRowsHtml}</tbody></table>
     </div>
-    <div class="pv-bar mb-2">Notes / Terms</div>
-    <p class="font-bold text-[11px] mb-1">Payment Terms &amp; Notes</p>
-    <p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(notesText)}</p>
+    ${notesSectionHtml}
     ${signatureHtml}
     <div class="text-white text-center text-[11px] py-2 -mx-8 -mb-8 mt-6" style="background:var(--orange)">${escapeHtml(brandLine || 'Site Ledger')}</div>
   `;
@@ -1174,8 +1506,10 @@ function resetNewDocForm(){
   $('ndPO').value = ''; $('ndDueDate').value = ''; $('ndDate').value = todayISO();
   $('ndDueUponReceipt').checked = false; $('ndDueDate').disabled = false;
   scopeEditor.innerHTML = ''; $('ndScopeFontSize').value = '11'; $('ndNotes').value = ''; $('ndDeposit').value = 0;
+  $('ndLumpAmount').value = 0;
   ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
   renderLineItems();
+  setBillingMode('LUMP_SUM');
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
   onNdContextChange();
@@ -1187,75 +1521,471 @@ $('ndSaveBtn').addEventListener('click', ()=>{
   if(!project){ alert('Select a client company and project first.'); return; }
   const docType = $('ndDocType').value;
 
-  const lineItems = ndLineItems.filter(li => (li.description && li.description.trim()) || Number(li.unitPrice))
-    .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
-  if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
+  let lineItems;
+  if(ndBillingMode === 'LUMP_SUM'){
+    const amt = Number($('ndLumpAmount').value) || 0;
+    if(amt <= 0){ alert('Enter a lump sum amount greater than zero.'); return; }
+    lineItems = [{ description: 'Lump Sum', qty: 1, unit: 'LS', unitPrice: amt, total: amt }];
+  } else {
+    lineItems = ndLineItems.filter(li => (li.description && li.description.trim()) || Number(li.unitPrice))
+      .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
+    if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
+  }
 
   const enteredNumber = $('ndDocNumber').value.trim();
-  if(enteredNumber && DB.documents.some(d => (d.docNumber || '').toLowerCase() === enteredNumber.toLowerCase())){
+  const duplicate = DB.documents.some(d => (d.docNumber || '').toLowerCase() === enteredNumber.toLowerCase() && (!ndEditingDoc || d.id !== ndEditingDoc.id));
+  if(enteredNumber && duplicate){
     alert('Document number "' + enteredNumber + '" is already in use on another document. Choose a different number, or clear the field to use the auto-generated one.');
     return;
   }
 
   const f = computeFinancials();
   const dateVal = $('ndDate').value || todayISO();
-  const year = new Date(dateVal).getFullYear();
-  const globalNumber = commitGlobalDocNumber(docType, isNaN(year) ? new Date().getFullYear() : year);
-  const docNumber = enteredNumber || globalNumber;
-  const projectNumber = commitProjectDocNumber(project, docType);
   const now = Date.now();
-  project.updatedAt = now;
-
-  const doc = {
-    id: uid(), projectId: project.id, docType, docNumber, projectNumber,
-    revisionNumber: 0, generatedFrom: ndGeneratedFrom || null,
-    date: dateVal, poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(),
-    lineItems, scopeOfWork: isScopeEmpty() ? '' : scopeEditor.innerHTML.trim(),
+  const status = $('ndStatus').value;
+  const newFields = {
+    date: dateVal, poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(), status,
+    billingMode: ndBillingMode, lineItems, scopeOfWork: isScopeEmpty() ? '' : scopeEditor.innerHTML.trim(),
     adjustments: getCurrentAdjustments(),
     financials: {
       subtotal: f.subtotal, totalAdjustments: f.totalAdjustments, grandTotal: f.grandTotal,
       previouslyReceived: f.previouslyReceived, currentDue: f.currentDue, remainingBalance: f.remainingBalance,
       depositAmount: f.depositAmount, amountDue: f.amountDue
     },
-    notes: $('ndNotes').value.trim(),
-    createdAt: now, updatedAt: now
+    notes: $('ndNotes').value.trim()
   };
 
-  DB.documents.push(doc);
+  let doc, projectNumber, wasEditingForLog = false;
+
+  if(ndEditingDoc){
+    // Revise in place: archive the current content as a version, then overwrite with the new content.
+    doc = ndEditingDoc;
+    wasEditingForLog = true;
+    doc.versions = doc.versions || [];
+    doc.versions.push({
+      revisionNumber: doc.revisionNumber || 0,
+      supersededAt: now,
+      reason: $('ndRevisionReason').value.trim(),
+      snapshot: {
+        date: doc.date, poReference: doc.poReference, dueDate: doc.dueDate, status: doc.status,
+        lineItems: doc.lineItems, scopeOfWork: doc.scopeOfWork, adjustments: doc.adjustments,
+        financials: doc.financials, notes: doc.notes
+      }
+    });
+    doc.revisionNumber = (doc.revisionNumber || 0) + 1;
+    Object.assign(doc, newFields);
+    doc.updatedAt = now;
+    projectNumber = doc.projectNumber;
+    logActivity(project.id, 'DOCUMENT_REVISED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} revised (Rev ${doc.revisionNumber})`, doc.id);
+  } else {
+    const year = new Date(dateVal).getFullYear();
+    const globalNumber = commitGlobalDocNumber(docType, isNaN(year) ? new Date().getFullYear() : year);
+    const docNumber = enteredNumber || globalNumber;
+    projectNumber = commitProjectDocNumber(project, docType);
+    doc = Object.assign({
+      id: uid(), projectId: project.id, docType, docNumber, projectNumber,
+      revisionNumber: 0, versions: [], generatedFrom: ndGeneratedFrom || null,
+      createdAt: now, updatedAt: now
+    }, newFields);
+    DB.documents.push(doc);
+    logActivity(project.id, 'DOCUMENT_CREATED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} created`, doc.id);
+    if(doc.generatedFrom){
+      logActivity(project.id, 'DOCUMENT_GENERATED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} generated from ${doc.generatedFrom.docNumber}`, doc.id);
+    }
+  }
+
+  project.updatedAt = now;
   saveDB();
   ndLastSavedDoc = doc;
   ndGeneratedFrom = null;
-  $('ndPdfBtn').removeAttribute('disabled');
-  $('ndDocNumber').value = docNumber;
+  $('ndDocNumber').value = doc.docNumber;
+  const wasEditing = !!ndEditingDoc;
+  ndEditingDoc = null;
+  ndDocNumberTouched = false;
+  ndHeadlineTouched = false;
+  $('ndDocNumber').disabled = false;
+  $('ndEditBanner').classList.add('hidden');
+  $('ndSaveBtn').textContent = 'Save';
   onNdContextChange();
   $('ndPdfBtn').removeAttribute('disabled');
   markSaved();
-  alert('Saved ' + docNumber + ' (project doc #: ' + projectNumber + ').');
+  alert(wasEditing
+    ? `Saved Rev ${doc.revisionNumber} of ${doc.docNumber}.`
+    : `Saved ${doc.docNumber} (project doc #: ${projectNumber}).`);
 });
 
 $('ndPdfBtn').addEventListener('click', ()=>{ if(ndLastSavedDoc) generatePDF(ndLastSavedDoc); });
 
 /* ============================ ALL DOCUMENTS ============================ */
-function renderAllDocs(){
-  const body = $('allDocsBody');
-  const docs = [...DB.documents].sort((a,b)=>b.createdAt-a.createdAt);
-  if(docs.length === 0){ body.innerHTML=''; $('allDocsEmpty').classList.remove('hidden'); return; }
-  $('allDocsEmpty').classList.add('hidden');
+function statusSelectHtml(doc, cls){
+  const options = getStatusOptions(doc.docType);
+  const c = statusBadgeColor(doc.status);
+  return `<select data-id="${doc.id}" class="${cls} text-xs border-0 rounded-full px-2 py-1 font-medium" style="background:${c.bg};color:${c.fg}">
+    ${options.map(s=>`<option value="${s}" ${doc.status===s?'selected':''}>${s}</option>`).join('')}
+  </select>`;
+}
+function revisionNoteHtml(doc){
+  if(!doc.revisionNumber && (!doc.versions || doc.versions.length===0)) return '';
+  return `<br><button data-id="${doc.id}" class="viewVersionsBtn text-[10px] text-[var(--steel)] underline">Rev ${doc.revisionNumber||0} · History</button>`;
+}
+function wireStatusSelects(body, refreshFn){
+  body.querySelectorAll('select[data-id]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const doc = DB.documents.find(d=>d.id===sel.dataset.id);
+      if(!doc) return;
+      const oldStatus = doc.status;
+      doc.status = sel.value;
+      doc.updatedAt = Date.now();
+      if(oldStatus !== doc.status){
+        logActivity(doc.projectId, 'STATUS_CHANGED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} status changed to ${doc.status}`, doc.id);
+      }
+      saveDB();
+      refreshFn();
+    });
+  });
+}
+function wireVersionsButtons(body){
+  body.querySelectorAll('.viewVersionsBtn').forEach(btn=> btn.addEventListener('click', ()=> openVersionsModal(btn.dataset.id)));
+}
+
+/* ============================ DASHBOARD ============================ */
+function renderDashboard(){
+  const projects = DB.projects;
+  const active = projects.filter(p=>!p.archived && !['Completed','Cancelled'].includes(p.status));
+  const completed = projects.filter(p=>p.status==='Completed');
+  const awaitingProposal = projects.filter(p=>['Lead','Estimating'].includes(p.status));
+  const awaitingPayment = projects.filter(p=>{ const l = getProjectLedger(p); return l.remaining > 0; });
+
+  const statTile = (label, value)=> `<div class="stat-tile"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></div>`;
+  $('dashProjectsStats').innerHTML = [
+    statTile('Total Projects', projects.length),
+    statTile('Active', active.length),
+    statTile('Completed', completed.length),
+    statTile('Awaiting Proposal', awaitingProposal.length),
+    statTile('Awaiting Payment', awaitingPayment.length)
+  ].join('');
+
+  let totalContract=0, totalCO=0, totalInvoiced=0, totalPaid=0, totalOutstanding=0;
+  projects.forEach(p=>{
+    const l = getProjectLedger(p);
+    totalContract += l.original; totalCO += l.approvedCO; totalInvoiced += l.billed; totalPaid += l.received; totalOutstanding += l.remaining;
+  });
+  $('dashFinancialStats').innerHTML = [
+    statTile('Total Contract', money(totalContract)),
+    statTile('Approved COs', money(totalCO)),
+    statTile('Total Invoiced', money(totalInvoiced)),
+    statTile('Total Paid', money(totalPaid)),
+    statTile('Outstanding', money(totalOutstanding))
+  ].join('');
+
+  const recent = [...DB.documents].sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt)).slice(0, 8);
+  $('dashRecentDocsBody').innerHTML = recent.length ? recent.map(d=>{
+    const project = DB.projects.find(p=>p.id===d.projectId);
+    return `<tr class="border-b border-[var(--line)]">
+      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
+      <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
+      <td class="p-2">${statusBadgeHtml(d.status)}</td>
+      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
+    </tr>`;
+  }).join('') : '<tr><td class="p-2 text-[#8a8375]" colspan="5">No documents yet.</td></tr>';
+}
+
+/* ============================ PROJECTS GRID ============================ */
+$('projSearchBox').addEventListener('input', renderProjectsGrid);
+$('projArchiveFilter').addEventListener('change', renderProjectsGrid);
+function renderProjectsGrid(){
+  const q = $('projSearchBox').value.trim().toLowerCase();
+  const filterMode = $('projArchiveFilter').value;
+  let list = DB.projects.slice();
+  if(filterMode === 'ACTIVE') list = list.filter(p=> !p.archived && p.status !== 'Completed' && p.status !== 'Cancelled');
+  else if(filterMode === 'COMPLETED') list = list.filter(p=> p.status === 'Completed');
+  else if(filterMode === 'ARCHIVED') list = list.filter(p=> p.archived);
+  if(q){
+    list = list.filter(p=>{
+      const client = DB.companies.find(c=>c.id===p.companyId);
+      return [p.projectCode, p.projectName, p.jobAddress, client ? client.companyName : '', p.status]
+        .filter(Boolean).some(v => v.toLowerCase().includes(q));
+    });
+  }
+  list.sort((a,b)=> (b.updatedAt||0) - (a.updatedAt||0));
+
+  const grid = $('projectsGrid');
+  if(list.length === 0){ grid.innerHTML = ''; $('projectsGridEmpty').classList.remove('hidden'); return; }
+  $('projectsGridEmpty').classList.add('hidden');
+  grid.innerHTML = list.map(p=>{
+    const l = getProjectLedger(p);
+    const client = DB.companies.find(c=>c.id===p.companyId);
+    return `<button data-id="${p.id}" class="openProjectCardBtn card p-4 text-left hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-[11px] font-mono text-[var(--orange-dark)] font-semibold">${escapeHtml(p.projectCode)}</p>
+        ${statusBadgeHtml(p.status)}
+      </div>
+      <p class="font-medium text-sm mt-1">${escapeHtml(p.projectName)}</p>
+      <p class="text-xs text-[#8a8375]">${escapeHtml(client ? client.companyName : '—')}</p>
+      <p class="text-xs text-[#8a8375] truncate">${escapeHtml(addressOneLine(p.jobAddress) || '—')}</p>
+      <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+        <div><span class="text-[#8a8375]">Contract</span><br><span class="font-medium">${money(l.revised)}</span></div>
+        <div><span class="text-[#8a8375]">Invoiced</span><br><span class="font-medium">${money(l.billed)}</span></div>
+        <div><span class="text-[#8a8375]">Paid</span><br><span class="font-medium">${money(l.received)}</span></div>
+        <div><span class="text-[#8a8375]">Outstanding</span><br><span class="font-medium text-[var(--orange-dark)]">${money(l.remaining)}</span></div>
+      </div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.openProjectCardBtn').forEach(btn=> btn.addEventListener('click', ()=> openProjectDetail(btn.dataset.id)));
+}
+
+/* ============================ PROJECT DETAIL ============================ */
+let pdDocTypeFilter = 'ALL';
+function openProjectDetail(projectId, opts){
+  const project = DB.projects.find(p=>p.id===projectId);
+  if(!project){ alert('Project not found.'); return; }
+  ndCurrentProjectDetailId = projectId;
+  pdDocTypeFilter = 'ALL';
+  document.querySelectorAll('.pd-filter-chip').forEach(c=>c.classList.toggle('active', c.dataset.type==='ALL'));
+  switchView('projectDetail', Object.assign({ projectId }, opts || {}));
+  renderProjectDetail();
+  setPdTab('overview');
+}
+function renderProjectDetail(){
+  const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
+  if(!project) return;
+  const client = DB.companies.find(c=>c.id===project.companyId);
+  const l = getProjectLedger(project);
+
+  $('pdBreadcrumb').textContent = project.projectCode;
+  $('pdProjectCode').textContent = project.projectCode;
+  $('pdProjectName').textContent = `${project.projectName}${client ? ' — ' + client.companyName : ''}`;
+
+  const statusSel = $('pdStatusSelect');
+  statusSel.innerHTML = PROJECT_STATUS_OPTIONS.map(s=>`<option value="${s}" ${project.status===s?'selected':''}>${s}</option>`).join('');
+  statusSel.onchange = ()=>{
+    project.status = statusSel.value;
+    project.updatedAt = Date.now();
+    logActivity(project.id, 'PROJECT_STATUS_CHANGED', `Project status changed to ${project.status}`, null);
+    saveDB();
+    renderProjectDetail();
+  };
+
+  $('pdArchiveBtn').textContent = project.archived ? 'Unarchive' : 'Archive';
+  $('pdArchiveBtn').onclick = ()=>{
+    project.archived = !project.archived;
+    project.updatedAt = Date.now();
+    logActivity(project.id, project.archived ? 'PROJECT_ARCHIVED' : 'PROJECT_UNARCHIVED', project.archived ? 'Project archived' : 'Project unarchived', null);
+    saveDB();
+    renderProjectDetail();
+  };
+
+  const stat = (label, value)=> `<div class="stat-tile"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></div>`;
+  $('pdFinancialStrip').innerHTML = [
+    stat('Original', money(project.originalContractTotal)),
+    stat('Approved COs', money(l.approvedCO)),
+    stat('Revised Contract', money(l.revised)),
+    stat('Invoiced', money(l.billed)),
+    stat('Paid', money(l.received)),
+    stat('Outstanding', money(l.remaining))
+  ].join('');
+
+  // Overview tab
+  const docs = DB.documents.filter(d=>d.projectId===project.id);
+  $('pdPanel-overview').innerHTML = `
+    <div class="card p-4 sm:p-5">
+      <h3 class="font-head text-lg text-[var(--orange-dark)] mb-3">Project Info</h3>
+      <div class="grid sm:grid-cols-2 gap-3 text-sm">
+        <div><span class="text-xs text-[#8a8375] block">Client</span>${escapeHtml(client ? client.companyName : '—')}</div>
+        <div><span class="text-xs text-[#8a8375] block">Address</span>${escapeHtml(addressOneLine(project.jobAddress) || '—')}</div>
+        <div><span class="text-xs text-[#8a8375] block">Start Date</span>${escapeHtml(project.startDate || '—')}</div>
+        <div><span class="text-xs text-[#8a8375] block">Documents</span>${docs.length} total</div>
+      </div>
+    </div>
+    <div class="card p-4 sm:p-5">
+      <h3 class="font-head text-lg text-[var(--orange-dark)] mb-3">Document Mix</h3>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="stat-tile"><div class="stat-label">Proposals</div><div class="stat-value">${docs.filter(d=>d.docType==='PROPOSAL').length}</div></div>
+        <div class="stat-tile"><div class="stat-label">Invoices</div><div class="stat-value">${docs.filter(d=>d.docType==='INVOICE').length}</div></div>
+        <div class="stat-tile"><div class="stat-label">Change Orders</div><div class="stat-value">${docs.filter(d=>d.docType==='CHANGE_ORDER').length}</div></div>
+      </div>
+    </div>`;
+
+  renderPdDocuments();
+  renderPdActivity();
+  $('pdNotesText').value = project.notes || '';
+}
+document.querySelectorAll('.pd-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=> setPdTab(tab.dataset.tab));
+});
+function setPdTab(name){
+  document.querySelectorAll('.pd-tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.pd-panel').forEach(p=> p.classList.add('hidden'));
+  $('pdPanel-' + name).classList.remove('hidden');
+}
+document.querySelectorAll('.pd-filter-chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    pdDocTypeFilter = chip.dataset.type;
+    document.querySelectorAll('.pd-filter-chip').forEach(c=>c.classList.toggle('active', c===chip));
+    renderPdDocuments();
+  });
+});
+function renderPdDocuments(){
+  const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
+  if(!project) return;
+  let docs = DB.documents.filter(d=>d.projectId===project.id);
+  if(pdDocTypeFilter === 'OTHER_TYPES') docs = docs.filter(d=>!['PROPOSAL','INVOICE','CHANGE_ORDER'].includes(d.docType));
+  else if(pdDocTypeFilter !== 'ALL') docs = docs.filter(d=>d.docType===pdDocTypeFilter);
+  docs.sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt));
+
+  const body = $('pdDocsBody');
+  if(docs.length === 0){ body.innerHTML=''; $('pdDocsEmpty').classList.remove('hidden'); return; }
+  $('pdDocsEmpty').classList.add('hidden');
   body.innerHTML = docs.map(d=>{
+    const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
+    const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="pdConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
+    return `<tr class="border-b border-[var(--line)]">
+      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
+      <td class="p-2">${escapeHtml(d.date)}</td>
+      <td class="p-2">${statusSelectHtml(d, 'pdStatusSelectRow')}</td>
+      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
+      <td class="p-2 text-right whitespace-nowrap">
+        ${convertBtn}
+        <button data-id="${d.id}" class="pdEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
+        <button data-id="${d.id}" class="pdPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
+        <button data-id="${d.id}" class="pdDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('.pdPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{ const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc); }));
+  body.querySelectorAll('.pdDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
+    if(!confirm('Delete this document?')) return;
+    DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
+    saveDB(); renderPdDocuments(); renderProjectDetail();
+  }));
+  body.querySelectorAll('.pdConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
+  body.querySelectorAll('.pdEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+  wireStatusSelects(body, ()=>{ renderPdDocuments(); renderProjectDetail(); });
+  wireVersionsButtons(body);
+}
+function renderPdActivity(){
+  const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
+  if(!project) return;
+  const entries = (DB.activityLog || []).filter(a=>a.projectId===project.id).sort((a,b)=> b.createdAt - a.createdAt);
+  const list = $('pdActivityList');
+  if(entries.length === 0){ list.innerHTML=''; $('pdActivityEmpty').classList.remove('hidden'); return; }
+  $('pdActivityEmpty').classList.add('hidden');
+  list.innerHTML = entries.map(a=>{
+    const dateStr = new Date(a.createdAt).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+    return `<div class="flex gap-3 border-b border-[var(--line)] pb-2">
+      <span class="text-[11px] text-[#8a8375] w-36 shrink-0">${dateStr}</span>
+      <span class="text-sm">${escapeHtml(a.description)}</span>
+    </div>`;
+  }).join('');
+}
+$('pdNotesSaveBtn').addEventListener('click', ()=>{
+  const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
+  if(!project) return;
+  project.notes = $('pdNotesText').value;
+  project.updatedAt = Date.now();
+  saveDB();
+  alert('Notes saved.');
+});
+
+let adSortKey = 'updatedAt', adSortDir = 'desc';
+function populateAllDocsFilters(){
+  const projSel = $('adFilterProject'), compSel = $('adFilterCompany'), typeSel = $('adFilterType'), statSel = $('adFilterStatus');
+  const curProj = projSel.value, curComp = compSel.value, curType = typeSel.value, curStat = statSel.value;
+  projSel.innerHTML = '<option value="">All Projects</option>' + DB.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.projectCode)} — ${escapeHtml(p.projectName)}</option>`).join('');
+  compSel.innerHTML = '<option value="">All Companies</option>' + DB.companies.map(c=>`<option value="${c.id}">${escapeHtml(c.companyName)}</option>`).join('');
+  typeSel.innerHTML = '<option value="">All Types</option>' + Object.keys(DOC_TYPE_LABEL).map(t=>`<option value="${t}">${DOC_TYPE_LABEL[t]}</option>`).join('');
+  const allStatuses = [...new Set(DB.documents.map(d=>d.status).filter(Boolean))].sort();
+  statSel.innerHTML = '<option value="">All Statuses</option>' + allStatuses.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if([...projSel.options].some(o=>o.value===curProj)) projSel.value = curProj;
+  if([...compSel.options].some(o=>o.value===curComp)) compSel.value = curComp;
+  if([...typeSel.options].some(o=>o.value===curType)) typeSel.value = curType;
+  if([...statSel.options].some(o=>o.value===curStat)) statSel.value = curStat;
+}
+['adSearchBox','adFilterProject','adFilterCompany','adFilterType','adFilterStatus','adFilterDateFrom','adFilterDateTo'].forEach(id=>{
+  $(id).addEventListener('input', renderAllDocs);
+  $(id).addEventListener('change', renderAllDocs);
+});
+$('adFilterClear').addEventListener('click', ()=>{
+  $('adSearchBox').value=''; $('adFilterProject').value=''; $('adFilterCompany').value='';
+  $('adFilterType').value=''; $('adFilterStatus').value=''; $('adFilterDateFrom').value=''; $('adFilterDateTo').value='';
+  renderAllDocs();
+});
+document.querySelectorAll('#view-alldocs .ad-sort').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(adSortKey === key) adSortDir = adSortDir === 'asc' ? 'desc' : 'asc';
+    else { adSortKey = key; adSortDir = key === 'docNumber' || key === 'project' || key === 'company' ? 'asc' : 'desc'; }
+    renderAllDocs();
+  });
+});
+
+function renderAllDocs(){
+  populateAllDocsFilters();
+  const q = $('adSearchBox').value.trim().toLowerCase();
+  const fProject = $('adFilterProject').value, fCompany = $('adFilterCompany').value, fType = $('adFilterType').value, fStatus = $('adFilterStatus').value;
+  const fFrom = $('adFilterDateFrom').value, fTo = $('adFilterDateTo').value;
+
+  let rows = DB.documents.map(d=>{
     const project = DB.projects.find(p=>p.id===d.projectId);
     const client = project ? DB.companies.find(c=>c.id===project.companyId) : null;
+    return { d, project, client };
+  });
+
+  if(fProject) rows = rows.filter(r=> r.project && r.project.id === fProject);
+  if(fCompany) rows = rows.filter(r=> r.client && r.client.id === fCompany);
+  if(fType) rows = rows.filter(r=> r.d.docType === fType);
+  if(fStatus) rows = rows.filter(r=> r.d.status === fStatus);
+  if(fFrom) rows = rows.filter(r=> r.d.date && r.d.date !== 'UPON_RECEIPT' && r.d.date >= fFrom);
+  if(fTo) rows = rows.filter(r=> r.d.date && r.d.date !== 'UPON_RECEIPT' && r.d.date <= fTo);
+  if(q){
+    rows = rows.filter(r=>{
+      const haystack = [
+        r.project ? r.project.projectCode : '', r.d.docNumber, r.d.projectNumber,
+        r.client ? r.client.companyName : '', r.project ? r.project.projectName : '',
+        r.project ? addressOneLine(r.project.jobAddress) : '', DOC_TYPE_LABEL[r.d.docType],
+        r.d.notes, r.d.status, r.d.date
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  const dir = adSortDir === 'asc' ? 1 : -1;
+  rows.sort((a,b)=>{
+    let av, bv;
+    switch(adSortKey){
+      case 'docType': av = DOC_TYPE_LABEL[a.d.docType]; bv = DOC_TYPE_LABEL[b.d.docType]; break;
+      case 'docNumber': av = a.d.docNumber||''; bv = b.d.docNumber||''; break;
+      case 'projectCode': av = a.project?a.project.projectCode:''; bv = b.project?b.project.projectCode:''; break;
+      case 'company': av = a.client?a.client.companyName:''; bv = b.client?b.client.companyName:''; break;
+      case 'project': av = a.project?a.project.projectName:''; bv = b.project?b.project.projectName:''; break;
+      case 'date': av = a.d.date||''; bv = b.d.date||''; break;
+      case 'status': av = a.d.status||''; bv = b.d.status||''; break;
+      case 'amount': av = a.d.financials.grandTotal; bv = b.d.financials.grandTotal; return (av-bv)*dir;
+      default: av = a.d.updatedAt||a.d.createdAt; bv = b.d.updatedAt||b.d.createdAt; return (av-bv)*dir;
+    }
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+
+  const body = $('allDocsBody');
+  if(rows.length === 0){ body.innerHTML=''; $('allDocsEmpty').classList.remove('hidden'); return; }
+  $('allDocsEmpty').classList.add('hidden');
+  body.innerHTML = rows.map(({d, project, client})=>{
     const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
     const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="adConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span></td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
       <td class="p-2 font-mono text-xs">${escapeHtml(project ? project.projectCode : '—')}</td>
       <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
       <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
       <td class="p-2">${escapeHtml(d.date)}</td>
+      <td class="p-2">${statusSelectHtml(d, 'adStatusSelect')}</td>
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
       <td class="p-2 text-right whitespace-nowrap">
         ${convertBtn}
+        <button data-id="${d.id}" class="adEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
         <button data-id="${d.id}" class="adPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
         <button data-id="${d.id}" class="adDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
       </td>
@@ -1270,6 +2000,9 @@ function renderAllDocs(){
     saveDB(); renderAllDocs();
   }));
   body.querySelectorAll('.adConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
+  body.querySelectorAll('.adEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+  wireStatusSelects(body, renderAllDocs);
+  wireVersionsButtons(body);
 }
 
 /* Pre-fills a new Invoice from a saved Proposal and links the two documents together */
@@ -1288,6 +2021,9 @@ function convertToInvoice(sourceDocId){
 
   ndLineItems = src.lineItems.map(li => Object.assign({}, li));
   renderLineItems();
+  const srcMode = src.billingMode || 'ITEMIZED';
+  setBillingMode(srcMode);
+  $('ndLumpAmount').value = srcMode === 'LUMP_SUM' ? ((src.lineItems[0] && src.lineItems[0].total) || 0) : 0;
   scopeEditor.innerHTML = src.scopeOfWork || '';
   $('ndTax').value = src.adjustments.taxPercent || 0;
   $('ndOverhead').value = src.adjustments.overheadPercent || 0;
@@ -1304,6 +2040,132 @@ function convertToInvoice(sourceDocId){
   ndGeneratedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
   setViewMode('split');
+}
+
+/* Loads a saved document back into the form so it can be revised. Saving will not create a new
+   document — it archives the current content as a version and bumps the revision number instead. */
+function editDocument(docId){
+  const doc = DB.documents.find(d=>d.id===docId);
+  if(!doc){ alert('Document not found.'); return; }
+  const project = DB.projects.find(p=>p.id===doc.projectId);
+  if(!project){ alert('Project not found for this document.'); return; }
+
+  switchView('newdoc');
+  $('ndCompanySelect').value = project.companyId;
+  fillProjectSelect($('ndProjectSelect'), project.companyId, project.id);
+  $('ndProjectSelect').value = project.id;
+  $('ndDocType').value = doc.docType;
+  syncDocTypeTabs();
+
+  ndLineItems = doc.lineItems.map(li => Object.assign({}, li));
+  renderLineItems();
+  const mode = doc.billingMode || 'ITEMIZED';
+  setBillingMode(mode);
+  $('ndLumpAmount').value = mode === 'LUMP_SUM' ? ((doc.lineItems[0] && doc.lineItems[0].total) || 0) : 0;
+  scopeEditor.innerHTML = doc.scopeOfWork || '';
+  $('ndNotes').value = doc.notes || '';
+  $('ndTax').value = doc.adjustments.taxPercent || 0;
+  $('ndOverhead').value = doc.adjustments.overheadPercent || 0;
+  $('ndBonding').value = doc.adjustments.bondingPercent || 0;
+  $('ndInsurance').value = doc.adjustments.insurancePercent || 0;
+  $('ndScaffold').value = doc.adjustments.scaffoldingFee || 0;
+  $('ndRigging').value = doc.adjustments.riggingFee || 0;
+  $('ndExtraLabor').value = doc.adjustments.extraLabor || 0;
+  $('ndExtraMaterials').value = doc.adjustments.extraMaterials || 0;
+  $('ndDeposit').value = doc.financials.depositAmount || 0;
+  $('ndPO').value = doc.poReference || '';
+  $('ndDate').value = (doc.date && doc.date !== 'UPON_RECEIPT') ? doc.date : todayISO();
+  if(doc.dueDate === 'UPON_RECEIPT'){
+    $('ndDueUponReceipt').checked = true; $('ndDueDate').disabled = true; $('ndDueDate').value = '';
+  } else {
+    $('ndDueUponReceipt').checked = false; $('ndDueDate').disabled = false; $('ndDueDate').value = doc.dueDate || '';
+  }
+
+  ndDocNumberTouched = true;
+  $('ndDocNumber').value = doc.docNumber;
+  $('ndDocNumber').disabled = true;
+  ndHeadlineTouched = true;
+  const headlineVal = doc.docType === 'PROPOSAL' ? doc.financials.amountDue : (doc.docType === 'INVOICE' ? doc.financials.currentDue : doc.financials.grandTotal);
+  $('ndHeadlineAmount').value = (headlineVal || 0).toFixed(2);
+  ndGeneratedFrom = doc.generatedFrom || null;
+  ndEditingDoc = doc;
+
+  onNdContextChange();
+
+  $('ndStatus').value = doc.status || getStatusOptions(doc.docType)[0];
+  $('ndEditBanner').classList.remove('hidden');
+  $('ndEditBannerLabel').textContent = `Editing ${doc.docNumber} — currently Rev ${doc.revisionNumber || 0}. Saving creates Rev ${(doc.revisionNumber||0) + 1}.`;
+  $('ndRevisionReason').value = '';
+  $('ndSaveBtn').textContent = 'Save New Revision';
+  setViewMode('split');
+}
+$('ndCancelEditBtn').addEventListener('click', ()=>{ resetNewDocForm(); });
+
+/* ---------------------------- Version history modal ---------------------------- */
+function openVersionsModal(docId){
+  const doc = DB.documents.find(d=>d.id===docId);
+  if(!doc) return;
+  $('versionsModalTitle').textContent = `${doc.docNumber} — Version History`;
+  const body = $('versionsModalBody');
+  const rows = [];
+  const versions = doc.versions || [];
+  versions.forEach(v=>{
+    rows.push({
+      revisionNumber: v.revisionNumber, date: v.supersededAt, reason: v.reason,
+      isCurrent: false, snapshot: v.snapshot
+    });
+  });
+  rows.push({ revisionNumber: doc.revisionNumber, date: doc.updatedAt || doc.createdAt, reason: 'Current version', isCurrent: true, snapshot: null });
+  rows.sort((a,b)=> b.revisionNumber - a.revisionNumber);
+
+  body.innerHTML = rows.map(r=>{
+    const dateStr = new Date(r.date).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+    return `<div class="border border-[var(--line)] rounded-lg p-3">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-sm font-semibold ${r.isCurrent ? 'text-[var(--orange-dark)]' : ''}">Rev ${r.revisionNumber}${r.isCurrent ? ' (current)' : ''}</p>
+        <span class="text-[11px] text-[#8a8375]">${dateStr}</span>
+      </div>
+      <p class="text-xs text-[#6b675f] mt-1">${escapeHtml(r.reason || (r.isCurrent ? '' : 'No reason given'))}</p>
+      ${r.isCurrent ? '' : `<button data-doc="${doc.id}" data-rev="${r.revisionNumber}" class="restoreVersionBtn text-xs text-[var(--orange)] mt-2">Restore this version</button>`}
+    </div>`;
+  }).join('');
+
+  body.querySelectorAll('.restoreVersionBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> restoreVersion(btn.dataset.doc, Number(btn.dataset.rev)));
+  });
+
+  $('versionsModal').classList.remove('hidden');
+}
+$('versionsModalClose').addEventListener('click', ()=> $('versionsModal').classList.add('hidden'));
+$('versionsModal').addEventListener('click', (e)=>{ if(e.target.id === 'versionsModal') $('versionsModal').classList.add('hidden'); });
+
+function restoreVersion(docId, revisionNumber){
+  const doc = DB.documents.find(d=>d.id===docId);
+  if(!doc) return;
+  const version = (doc.versions || []).find(v=>v.revisionNumber === revisionNumber);
+  if(!version){ alert('That version could not be found.'); return; }
+  if(!confirm(`Restore Rev ${revisionNumber}? The current content will be preserved as its own version first.`)) return;
+
+  const now = Date.now();
+  doc.versions = doc.versions || [];
+  doc.versions.push({
+    revisionNumber: doc.revisionNumber || 0,
+    supersededAt: now,
+    reason: `Restored to Rev ${revisionNumber}`,
+    snapshot: {
+      date: doc.date, poReference: doc.poReference, dueDate: doc.dueDate, status: doc.status,
+      lineItems: doc.lineItems, scopeOfWork: doc.scopeOfWork, adjustments: doc.adjustments,
+      financials: doc.financials, notes: doc.notes
+    }
+  });
+  doc.revisionNumber = (doc.revisionNumber || 0) + 1;
+  Object.assign(doc, JSON.parse(JSON.stringify(version.snapshot)));
+  doc.updatedAt = now;
+  logActivity(doc.projectId, 'VERSION_RESTORED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} restored to Rev ${revisionNumber} (now Rev ${doc.revisionNumber})`, doc.id);
+  saveDB();
+  $('versionsModal').classList.add('hidden');
+  renderAllDocs(); renderHistoryTab();
+  alert(`Restored — this is now Rev ${doc.revisionNumber}.`);
 }
 
 /* ============================ PROJECT LEDGERS =========================== */
@@ -1338,11 +2200,13 @@ function renderHistoryTab(){
       const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="hsConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
       return `<tr class="border-b border-[var(--line)]">
         <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span></td>
+        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
         <td class="p-2">${escapeHtml(d.date)}</td>
+        <td class="p-2">${statusSelectHtml(d, 'hsStatusSelect')}</td>
         <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
         <td class="p-2 text-right whitespace-nowrap">
           ${convertBtn}
+          <button data-id="${d.id}" class="hsEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
           <button data-id="${d.id}" class="hsPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">Download PDF</button>
           <button data-id="${d.id}" class="hsDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
         </td>
@@ -1357,6 +2221,9 @@ function renderHistoryTab(){
       saveDB(); renderHistoryTab();
     }));
     body.querySelectorAll('.hsConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
+    body.querySelectorAll('.hsEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+    wireStatusSelects(body, renderHistoryTab);
+    wireVersionsButtons(body);
   }
 }
 
@@ -1455,8 +2322,11 @@ function generatePDF(doc){
     startY: 54, margin: { left: pageWidth - margin - 220, right: margin }, tableWidth: 220,
     theme: 'plain', styles: { fontSize: 9, cellPadding: 4, textColor: INK },
     body: meta.rows,
-    columnStyles: { 0: { fillColor: SHADE, fontStyle:'bold', textColor:[90,85,80], cellWidth: 100 }, 1: { halign:'right', fontStyle:'bold' } },
-    didParseCell: function(data){ if(data.row.index === meta.rows.length - 1){ data.cell.styles.textColor = BRAND; data.cell.styles.fontSize = 10.5; } }
+    columnStyles: { 0: { fontStyle:'bold', textColor:[90,85,80], cellWidth: 100 }, 1: { halign:'right', fontStyle:'bold' } },
+    didParseCell: function(data){
+      if(data.row.index % 2 === 0) data.cell.styles.fillColor = SHADE;
+      if(data.row.index === meta.rows.length - 1){ data.cell.styles.textColor = BRAND; data.cell.styles.fontSize = 10.5; }
+    }
   });
 
   let y = Math.max(leftY + 12, pdf.lastAutoTable.finalY + 16);
@@ -1479,6 +2349,9 @@ function generatePDF(doc){
   const clientContactLine = client ? [client.phone, client.email].filter(Boolean).join('  /  ') : '';
   if(clientContactLine){ pdf.text(clientContactLine, margin, y); y += 11.5; }
   y += 6;
+  pdf.setDrawColor(228,225,220);
+  pdf.line(margin, y, pageWidth - margin, y);
+  y += 12;
 
   pdf.setFont('helvetica','bold'); pdf.setFontSize(9.5); pdf.setTextColor(...INK);
   pdf.text(`PROJECT: ${project.projectName}  (${project.projectCode || ''})`, margin, y, { maxWidth: pageWidth - margin*2 });
@@ -1517,16 +2390,26 @@ function generatePDF(doc){
     } else y += 6;
   }
 
-  pdf.autoTable({
-    startY: y, margin: { left: margin, right: margin },
-    head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
-    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
-    styles: { fontSize: 9, cellPadding: 5, textColor: INK },
-    alternateRowStyles: { fillColor: [252,250,249] },
-    body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
-    columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
-  });
-  y = pdf.lastAutoTable.finalY + 14;
+  if(doc.billingMode === 'LUMP_SUM'){
+    const lumpAmt = (doc.lineItems[0] && doc.lineItems[0].total) || 0;
+    pdf.setFillColor(...BRAND);
+    pdf.rect(margin, y, pageWidth - margin*2, 20, 'F');
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(255,255,255);
+    pdf.text('LUMP SUM AMOUNT', margin + 8, y + 13.5);
+    pdf.text(money(lumpAmt), pageWidth - margin - 8, y + 13.5, { align:'right' });
+    y += 20 + 14;
+  } else {
+    pdf.autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
+      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
+      styles: { fontSize: 9, cellPadding: 5, textColor: INK },
+      alternateRowStyles: { fillColor: [252,250,249] },
+      body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
+      columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
+    });
+    y = pdf.lastAutoTable.finalY + 14;
+  }
 
   const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments);
   pdf.autoTable({
@@ -1542,26 +2425,26 @@ function generatePDF(doc){
   });
   y = pdf.lastAutoTable.finalY + 20;
 
-  const notesText = doc.notes && doc.notes.trim() ? doc.notes.trim() : (doc.docType === 'INVOICE'
-    ? 'This invoice represents a progress payment for work completed to date in accordance with the project scope. Please remit payment by the due date above.'
-    : 'By signing below, the client accepts this document and authorizes work to proceed as outlined above. Any work outside this scope requires separate written authorization.');
+  const notesText = (doc.notes || '').trim();
 
   const footerReserve = doc.docType === 'INVOICE' ? 60 : 100;
   if(y > pageHeight - footerReserve - 70) { pdf.addPage(); y = 50; }
 
-  pdf.setFillColor(...BRAND);
-  pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
-  pdf.text('NOTES / TERMS', margin + 6, y + 11.5);
-  y += 24;
+  if(notesText){
+    pdf.setFillColor(...BRAND);
+    pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
+    pdf.text('NOTES / TERMS', margin + 6, y + 11.5);
+    y += 24;
 
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(8.5); pdf.setTextColor(...INK);
-  pdf.text('PAYMENT TERMS & NOTES', margin, y);
-  y += 12;
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(...GREY);
-  const wrappedNotes = pdf.splitTextToSize(notesText, pageWidth - margin*2);
-  pdf.text(wrappedNotes, margin, y);
-  y += wrappedNotes.length * 11 + 10;
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(8.5); pdf.setTextColor(...INK);
+    pdf.text('PAYMENT TERMS & NOTES', margin, y);
+    y += 12;
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(...GREY);
+    const wrappedNotes = pdf.splitTextToSize(notesText, pageWidth - margin*2);
+    pdf.text(wrappedNotes, margin, y);
+    y += wrappedNotes.length * 11 + 10;
+  }
 
   if(doc.docType !== 'INVOICE'){
     const sigY = y + 26;
@@ -1599,11 +2482,16 @@ function init(){
   renderCompaniesList();
   renderProjectsList();
   renderLineItems();
+  $('projStatus').innerHTML = PROJECT_STATUS_OPTIONS.map(s=>`<option value="${s}" ${s==='Lead'?'selected':''}>${s}</option>`).join('');
   $('ndDate').value = todayISO();
   syncDocTypeTabs();
   onNdContextChange();
   markSaved();
-  switchView('newdoc');
+  if(location.hash && location.hash !== '#'){
+    routeFromHash();
+  } else {
+    switchView('dashboard');
+  }
 }
 
 init();
