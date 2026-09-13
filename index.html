@@ -20,9 +20,9 @@
 
 <style>
   :root{
-    --navy:#20242B;      /* sidebar / ink */
+    --navy:#20242B;
     --steel:#6b7280;
-    --orange:#A8404E;    /* brand red — bars, highlights (lighter maroon) */
+    --orange:#A8404E;
     --orange-dark:#8C2E3B;
     --concrete:#F3F1EE;
     --charcoal:#26241F;
@@ -33,6 +33,7 @@
   .font-head{ font-family:'Barlow Condensed',sans-serif; }
   input, select, textarea{ background:#fff; }
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--orange); outline-offset:1px; }
+  input:disabled{ background:var(--concrete); color:#9a948a; }
   .card{ background:#fff; border:1px solid var(--line); border-radius:10px; }
   .btn-primary{ background:var(--orange-dark); color:#fff; }
   .btn-primary:hover{ background:#74212C; }
@@ -45,13 +46,11 @@
   .ledger-row:last-child{ border-bottom:none; }
   .ledger-row.total{ font-weight:700; color:var(--orange-dark); font-size:.95rem; }
 
-  /* Sidebar nav */
   .nav-btn{ color:rgba(255,255,255,.65); font-size:.86rem; transition:background .12s; }
   .nav-btn:hover{ background:rgba(255,255,255,.06); color:#fff; }
   .nav-btn.active{ background:var(--orange); color:#fff; font-weight:600; }
   .create-btn{ color:rgba(255,255,255,.85); }
 
-  /* Doc-type tabs + view-mode toggle */
   .doctype-tab{ color:#8a8375; border-bottom:2px solid transparent; padding:.4rem .1rem; font-size:.85rem; }
   .doctype-tab.active{ color:var(--orange-dark); border-bottom-color:var(--orange); font-weight:600; }
   .viewmode-btn{ font-size:.72rem; padding:.3rem .6rem; color:#6b675f; }
@@ -63,7 +62,19 @@
   ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
   .hidden{ display:none !important; }
 
-  /* Live preview page look */
+  /* Rich text editor for Scope of Work */
+  .rte-btn{ min-width:38px; min-height:38px; padding:6px 10px; font-size:.78rem; border:1px solid var(--line); border-radius:6px; background:#fff; color:#4a4540; line-height:1; }
+  .rte-btn:active{ background:var(--concrete); }
+  .rte-btn.active{ background:var(--orange-dark); color:#fff; border-color:var(--orange-dark); }
+  #ndScopeEditor{ outline:none; line-height:1.5; }
+  #ndScopeEditor:empty:before{ content: attr(data-placeholder); color:#9a948a; }
+  #ndScopeEditor ul{ list-style:disc; padding-left:1.4em; margin:4px 0; }
+  #ndScopeEditor ol{ list-style:decimal; padding-left:1.4em; margin:4px 0; }
+  #ndScopeEditor blockquote{ margin:0 0 0 24px; border:none; padding:0; }
+  #livePreview .nd-scope-render ul{ list-style:disc; padding-left:1.2em; margin:4px 0; }
+  #livePreview .nd-scope-render ol{ list-style:decimal; padding-left:1.2em; margin:4px 0; }
+  #livePreview .nd-scope-render blockquote{ margin:0 0 0 20px; border:none; padding:0; }
+
   #livePreview{ font-size:12px; line-height:1.4; color:#26241f; }
   #livePreview .pv-bar{ background:var(--orange); color:#fff; font-weight:700; font-size:10px; letter-spacing:.03em; text-transform:uppercase; padding:5px 8px; }
   #livePreview table{ width:100%; border-collapse:collapse; }
@@ -162,6 +173,14 @@
             <div>
               <label class="field-label" id="ndDueDateLabel">Due Date</label>
               <input id="ndDueDate" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <label class="flex items-center gap-1.5 mt-1.5 text-xs text-[#6b675f]">
+                <input type="checkbox" id="ndDueUponReceipt"> Due upon receipt (no specific date)
+              </label>
+            </div>
+            <div>
+              <label class="field-label" id="ndHeadlineLabel">Amount Due ($)</label>
+              <input id="ndHeadlineAmount" type="number" step="0.01" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm font-semibold">
+              <p class="text-[11px] text-[#8a8375] mt-1">Defaults to the computed total below — type your own figure to override it.</p>
             </div>
           </div>
           <select id="ndDocType" class="hidden">
@@ -173,43 +192,48 @@
         </div>
 
         <div class="card p-4 sm:p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-head text-lg text-[var(--orange-dark)]">Scope of Work</h2>
-            <div class="flex rounded-md overflow-hidden border border-[var(--line)] text-xs">
-              <button id="ndModeLumpBtn" class="viewmode-btn active" style="border-radius:0">Lump Sum</button>
-              <button id="ndModeItemBtn" class="viewmode-btn" style="border-radius:0">Itemized</button>
-            </div>
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-2">Scope of Work / Description</h2>
+          <p class="text-xs text-[#8a8375] mb-3">Free-form narrative describing the work. Prints above the items table, separate from it.</p>
+          <div class="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-[var(--concrete)] rounded-md border border-[var(--line)]">
+            <button type="button" data-cmd="bold" class="rte-btn" title="Bold"><b>B</b></button>
+            <button type="button" data-cmd="italic" class="rte-btn" title="Italic"><i>I</i></button>
+            <button type="button" data-cmd="underline" class="rte-btn" title="Underline"><u>U</u></button>
+            <span class="w-px my-1 bg-[var(--line)]"></span>
+            <button type="button" data-cmd="insertUnorderedList" class="rte-btn" title="Bullet list">• List</button>
+            <button type="button" data-cmd="insertOrderedList" class="rte-btn" title="Numbered list">1. List</button>
+            <span class="w-px my-1 bg-[var(--line)]"></span>
+            <button type="button" data-cmd="outdent" class="rte-btn" title="Decrease indent">⇤ Indent</button>
+            <button type="button" data-cmd="indent" class="rte-btn" title="Increase indent">⇥ Indent</button>
+            <span class="w-px my-1 bg-[var(--line)]"></span>
+            <select id="ndScopeFontSize" class="rte-btn" title="Font size">
+              <option value="9">Small</option>
+              <option value="11" selected>Normal</option>
+              <option value="14">Large</option>
+              <option value="18">X-Large</option>
+            </select>
+            <button type="button" data-cmd="removeFormat" class="rte-btn" title="Clear formatting">Clear</button>
           </div>
+          <div id="ndScopeEditor" contenteditable="true" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" style="min-height:140px" data-placeholder="Describe the scope of work — numbered sections, bullet points, notes, etc."></div>
+        </div>
 
-          <div id="ndLumpPanel" class="space-y-3">
-            <div>
-              <label class="field-label">Scope Summary</label>
-              <textarea id="ndLumpDesc" rows="3" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="Describe the scope of work covered by this lump sum amount…"></textarea>
-            </div>
-            <div class="sm:w-64">
-              <label class="field-label">Lump Sum Amount ($)</label>
-              <input id="ndLumpAmount" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
-            </div>
+        <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Line Items</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[560px]">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                  <th class="p-1">Description</th>
+                  <th class="p-1 w-16">Qty</th>
+                  <th class="p-1 w-24">Unit</th>
+                  <th class="p-1 w-28">Unit Price</th>
+                  <th class="p-1 w-28 text-right">Amount</th>
+                  <th class="p-1 w-8"></th>
+                </tr>
+              </thead>
+              <tbody id="ndLineItemsBody"></tbody>
+            </table>
           </div>
-
-          <div id="ndItemPanel" class="hidden space-y-3">
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm min-w-[520px]">
-                <thead>
-                  <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
-                    <th class="p-1">Description</th>
-                    <th class="p-1 w-16">Qty</th>
-                    <th class="p-1 w-20">Unit</th>
-                    <th class="p-1 w-28">Unit Price</th>
-                    <th class="p-1 w-28 text-right">Amount</th>
-                    <th class="p-1 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody id="ndLineItemsBody"></tbody>
-              </table>
-            </div>
-            <button id="ndAddRowBtn" class="btn-ghost text-xs px-3 py-1.5 rounded">+ Add Line Item</button>
-          </div>
+          <button id="ndAddRowBtn" class="btn-ghost text-xs px-3 py-1.5 rounded mt-2">+ Add Line Item</button>
         </div>
 
         <div class="card p-4 sm:p-5">
@@ -240,7 +264,7 @@
             <input id="ndDeposit" type="number" step="0.01" min="0" value="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
           </div>
           <div id="ndLedgerBox">
-            <div class="ledger-row"><span>Total</span><span id="ndOutSubtotal">$0.00</span></div>
+            <div class="ledger-row"><span>Subtotal</span><span id="ndOutSubtotal">$0.00</span></div>
             <div class="ledger-row"><span>Total Markups / Additions</span><span id="ndOutAdjustments">$0.00</span></div>
             <div class="ledger-row total"><span>Grand Total</span><span id="ndOutGrandTotal">$0.00</span></div>
             <div id="ndProposalLedgerRows" class="hidden">
@@ -249,11 +273,11 @@
             </div>
             <div id="ndInvoiceLedgerRows" class="hidden">
               <div class="ledger-row"><span>Previously Received</span><span id="ndOutPrevReceived">($0.00)</span></div>
-              <div class="ledger-row items-center"><span>Current Payment Due</span><input id="ndCurrentDueInput" type="number" step="0.01" class="w-32 border border-[var(--line)] rounded px-2 py-1 text-sm text-right"></div>
+              <div class="ledger-row"><span>Current Payment Due</span><span id="ndOutCurrentDue">$0.00</span></div>
               <div class="ledger-row total"><span>Remaining Balance</span><span id="ndOutRemaining">$0.00</span></div>
-              <p class="text-[11px] text-[#8a8375] mt-1">Defaults to the grand total above — edit it directly for a partial or progress billing amount.</p>
             </div>
             <div id="ndCoLedgerNote" class="hidden text-xs text-[var(--orange-dark)] mt-2"></div>
+            <p class="text-[11px] text-[#8a8375] mt-2">The headline amount above (Amount Due / Current Due / Grand Total) is what actually gets used — edit it in the Project &amp; Document Info card.</p>
           </div>
         </div>
 
@@ -376,7 +400,7 @@
           <div><label class="field-label">Company Name</label><input required id="compName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
           <div><label class="field-label">Phone</label><input id="compPhone" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
           <div class="sm:col-span-2">
-            <label class="field-label">Address (3 lines)</label>
+            <label class="field-label">Address (3 lines — displays as one line)</label>
             <div class="grid sm:grid-cols-3 gap-2">
               <input id="compAddress1" placeholder="Street address" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
               <input id="compAddress2" placeholder="City" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
@@ -399,7 +423,7 @@
           <div><label class="field-label">Project Name</label><input required id="projName" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
           <div><label class="field-label">Start Date</label><input id="projStart" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></div>
           <div class="sm:col-span-2">
-            <label class="field-label">Jobsite Address (3 lines)</label>
+            <label class="field-label">Jobsite Address (3 lines — displays as one line)</label>
             <div class="grid sm:grid-cols-3 gap-2">
               <input id="projAddress1" placeholder="Street address" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
               <input id="projAddress2" placeholder="City" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
@@ -424,6 +448,8 @@
 
 const STORAGE_KEY = 'siteLedgerDB_v1';
 let DB = null;
+
+const UNIT_OPTIONS = ['LS','EA','LF','SF','SY','CF','CY','TON','LB','HR','DAY','WK','MO','GAL','BAG','BD','MSF','ROLL','SHEET','LOAD','TRIP','IN','FT','PCT','OTHER'];
 
 function defaultDB(){
   return {
@@ -472,9 +498,11 @@ function formatDateLong(s){
 }
 function joinAddressLines(l1, l2, l3){ return [l1, l2, l3].map(s => (s||'').trim()).filter(Boolean).join('\n'); }
 function addressOneLine(addr){ return addr ? addr.replace(/\n+/g, ', ') : ''; }
+
 const DOC_TITLE_MAP = { PROPOSAL:'PROPOSAL', CHANGE_ORDER:'CHANGE ORDER', INVOICE:'INVOICE' };
 const DOC_NUMBER_LABEL_MAP = { PROPOSAL:'Proposal #', CHANGE_ORDER:'Change Order #', INVOICE:'Invoice #' };
 const DOC_TYPE_LABEL = { PROPOSAL:'Proposal', CHANGE_ORDER:'Change Order', INVOICE:'Invoice' };
+const HEADLINE_LABEL_MAP = { PROPOSAL:'Amount Due ($)', CHANGE_ORDER:'Grand Total ($)', INVOICE:'Current Due ($)' };
 
 /* ------------------------- Project ledger math ------------------------ */
 function getProjectLedger(project){
@@ -521,7 +549,7 @@ function buildTotalsRows(f, docType, project, ledger, adj){
   const rows = buildAdjustmentRows(f.subtotal, adj);
   const highlight = [];
   if(docType === 'PROPOSAL'){
-    rows.push(['Total:', money(f.grandTotal)]);
+    rows.push(['Total:', money(f.subtotal + f.totalAdjustments)]);
     if(f.depositAmount) rows.push(['Deposit:', '(' + money(f.depositAmount) + ')']);
     rows.push(['Amount Due (USD):', money(f.amountDue)]);
     highlight.push('Amount Due (USD):');
@@ -532,7 +560,7 @@ function buildTotalsRows(f, docType, project, ledger, adj){
     rows.push(['Revised Contract Total:', money(ledger ? ledger.revised : 0)]);
     highlight.push('Revised Contract Total:');
   } else {
-    rows.push(['Subtotal:', money(f.subtotal)]);
+    rows.push(['Subtotal:', money(f.subtotal + f.totalAdjustments)]);
     rows.push(['Previously Received:', '(' + money(f.previouslyReceived) + ')']);
     rows.push(['Current Payment Due:', money(f.currentDue)]);
     rows.push(['Remaining Balance:', money(f.remainingBalance)]);
@@ -540,14 +568,18 @@ function buildTotalsRows(f, docType, project, ledger, adj){
   }
   return { rows, highlight };
 }
-function getMetaInfo(docType, docNumber, dateStr, po, dueDate, f){
+function getMetaInfo(docType, docNumber, dateStr, po, dueVal, f){
   const rows = [
     [DOC_NUMBER_LABEL_MAP[docType], docNumber || '—'],
     ['Date', formatDateLong(dateStr)],
     ['P.O. / S.O.', po || '—']
   ];
-  if(docType === 'PROPOSAL') rows.push(['Valid Until', dueDate ? formatDateLong(dueDate) : '—']);
-  else rows.push(['Due Date', dueDate ? formatDateLong(dueDate) : 'Upon Receipt']);
+  const dueLabel = docType === 'PROPOSAL' ? 'Valid Until' : 'Due Date';
+  let dueDisplay;
+  if(dueVal === 'UPON_RECEIPT') dueDisplay = 'Due Upon Receipt';
+  else if(!dueVal) dueDisplay = '—';
+  else dueDisplay = formatDateLong(dueVal);
+  rows.push([dueLabel, dueDisplay]);
   const amountLabel = docType === 'INVOICE' ? 'Current Due' : (docType === 'PROPOSAL' ? 'Amount Due' : 'Grand Total');
   const amountValue = docType === 'INVOICE' ? f.currentDue : (docType === 'PROPOSAL' ? f.amountDue : f.grandTotal);
   rows.push([amountLabel, money(amountValue)]);
@@ -575,7 +607,6 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
   });
 });
 
-/* ---- New Document: doc-type tabs ---- */
 document.querySelectorAll('.doctype-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     $('ndDocType').value = tab.dataset.doctype;
@@ -588,9 +619,9 @@ function syncDocTypeTabs(){
   const dt = $('ndDocType').value;
   document.querySelectorAll('.doctype-tab').forEach(t=> t.classList.toggle('active', t.dataset.doctype === dt));
   $('ndDueDateLabel').textContent = dt === 'PROPOSAL' ? 'Valid Until' : 'Due Date';
+  $('ndHeadlineLabel').textContent = HEADLINE_LABEL_MAP[dt];
 }
 
-/* ---- New Document: Form / Split / Preview toggle ---- */
 document.querySelectorAll('.viewmode-btn[data-mode]').forEach(btn=>{
   btn.addEventListener('click', ()=> setViewMode(btn.dataset.mode));
 });
@@ -602,7 +633,6 @@ function setViewMode(mode){
   else { formPane.style.display=''; previewPane.style.display=''; formPane.style.width='50%'; previewPane.style.width='50%'; }
 }
 
-/* ---- Unsaved indicator ---- */
 function markDirty(){ $('ndStatusBadge').textContent = 'Unsaved changes'; $('ndStatusBadge').style.color = '#A8404E'; }
 function markSaved(){ $('ndStatusBadge').textContent = 'Saved'; $('ndStatusBadge').style.color = '#4C7A5C'; }
 $('ndFormPane').addEventListener('input', markDirty);
@@ -741,9 +771,11 @@ function renderProjectsList(){
 
 /* ============================ NEW DOCUMENT ============================= */
 let ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
-let ndBillingMode = 'LUMP_SUM';
+let ndDocNumberTouched = false;
+let ndHeadlineTouched = false;
 let ndLastSavedDoc = null;
 
+function resetFieldOverrides(){ ndDocNumberTouched = false; ndHeadlineTouched = false; }
 function getSelectedProject(){ return DB.projects.find(p=>p.id === $('ndProjectSelect').value) || null; }
 function getSelectedClient(project){ return project ? DB.companies.find(c=>c.id===project.companyId) : null; }
 function getCurrentAdjustments(){
@@ -758,10 +790,7 @@ function getCurrentAdjustments(){
     extraMaterials: Number($('ndExtraMaterials').value) || 0
   };
 }
-
-let ndDocNumberTouched = false;
-let ndCurrentDueTouched = false;
-function resetFieldOverrides(){ ndDocNumberTouched = false; ndCurrentDueTouched = false; }
+function getCurrentDueVal(){ return $('ndDueUponReceipt').checked ? 'UPON_RECEIPT' : $('ndDueDate').value; }
 
 $('ndCompanySelect').addEventListener('change', ()=>{
   fillProjectSelect($('ndProjectSelect'), $('ndCompanySelect').value, '');
@@ -770,9 +799,48 @@ $('ndCompanySelect').addEventListener('change', ()=>{
 });
 $('ndProjectSelect').addEventListener('change', ()=>{ resetFieldOverrides(); onNdContextChange(); });
 $('ndDate').addEventListener('change', onNdContextChange);
-['ndPO','ndDueDate','ndNotes','ndLumpDesc'].forEach(id => $(id).addEventListener('input', renderLivePreview));
+['ndPO','ndDueDate','ndNotes'].forEach(id => $(id).addEventListener('input', renderLivePreview));
+
+/* ---- Scope of Work rich text editor ---- */
+const scopeEditor = $('ndScopeEditor');
+function isScopeEmpty(){ return scopeEditor.textContent.replace(/\u00a0/g,' ').trim().length === 0; }
+function applyFontSize(px){
+  document.execCommand('fontSize', false, '7');
+  scopeEditor.querySelectorAll('font[size="7"]').forEach(el=>{
+    el.removeAttribute('size');
+    el.style.fontSize = px + 'px';
+  });
+}
+function updateRteActiveStates(){
+  document.querySelectorAll('.rte-btn[data-cmd]').forEach(btn=>{
+    try{ btn.classList.toggle('active', document.queryCommandState(btn.dataset.cmd)); }catch(e){}
+  });
+}
+document.querySelectorAll('.rte-btn[data-cmd]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    scopeEditor.focus();
+    document.execCommand(btn.dataset.cmd, false, null);
+    updateRteActiveStates();
+    renderLivePreview();
+  });
+});
+$('ndScopeFontSize').addEventListener('change', ()=>{
+  scopeEditor.focus();
+  applyFontSize(Number($('ndScopeFontSize').value));
+  renderLivePreview();
+});
+scopeEditor.addEventListener('input', renderLivePreview);
+scopeEditor.addEventListener('keyup', updateRteActiveStates);
+scopeEditor.addEventListener('mouseup', updateRteActiveStates);
+scopeEditor.addEventListener('touchend', updateRteActiveStates);
 $('ndDocNumber').addEventListener('input', ()=>{ ndDocNumberTouched = true; renderLivePreview(); });
-$('ndCurrentDueInput').addEventListener('input', ()=>{ ndCurrentDueTouched = true; recalcLedger(); });
+$('ndHeadlineAmount').addEventListener('input', ()=>{ ndHeadlineTouched = true; recalcLedger(); });
+$('ndDueUponReceipt').addEventListener('change', ()=>{
+  const checked = $('ndDueUponReceipt').checked;
+  $('ndDueDate').disabled = checked;
+  if(checked) $('ndDueDate').value = '';
+  renderLivePreview();
+});
 
 function onNdContextChange(){
   const project = getSelectedProject();
@@ -794,15 +862,13 @@ function onNdContextChange(){
   recalcLedger();
 }
 
-$('ndModeLumpBtn').addEventListener('click', ()=> setBillingMode('LUMP_SUM'));
-$('ndModeItemBtn').addEventListener('click', ()=> setBillingMode('ITEMIZED'));
-function setBillingMode(mode){
-  ndBillingMode = mode;
-  $('ndModeLumpBtn').classList.toggle('active', mode==='LUMP_SUM');
-  $('ndModeItemBtn').classList.toggle('active', mode==='ITEMIZED');
-  $('ndLumpPanel').classList.toggle('hidden', mode!=='LUMP_SUM');
-  $('ndItemPanel').classList.toggle('hidden', mode!=='ITEMIZED');
-  recalcLedger();
+function unitOptionsHtml(currentUnit){
+  let html = UNIT_OPTIONS.map(u=>`<option value="${u}" ${currentUnit===u?'selected':''}>${u}</option>`).join('');
+  if(currentUnit && !UNIT_OPTIONS.includes(currentUnit)){
+    html += `<option value="${escapeHtml(currentUnit)}" selected>${escapeHtml(currentUnit)}</option>`;
+  }
+  html += `<option value="__custom__">+ Custom…</option>`;
+  return html;
 }
 
 function renderLineItems(){
@@ -812,7 +878,7 @@ function renderLineItems(){
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-1"><input class="li-desc w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${escapeHtml(li.description)}" placeholder="Description"></td>
       <td class="p-1"><input type="number" step="0.01" class="li-qty w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${li.qty}"></td>
-      <td class="p-1"><input class="li-unit w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${escapeHtml(li.unit)}" placeholder="SF/CY/LF"></td>
+      <td class="p-1"><select class="li-unit w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}">${unitOptionsHtml(li.unit || 'LS')}</select></td>
       <td class="p-1"><input type="number" step="0.01" class="li-price w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${li.unitPrice}"></td>
       <td class="p-1 text-right text-sm font-medium">${money(amt)}</td>
       <td class="p-1 text-center"><button class="li-remove text-[var(--orange)]" data-i="${i}">✕</button></td>
@@ -823,10 +889,21 @@ $('ndAddRowBtn').addEventListener('click', ()=>{ ndLineItems.push({ description:
 $('ndLineItemsBody').addEventListener('input', (e)=>{
   const i = e.target.dataset.i; if(i === undefined) return;
   if(e.target.classList.contains('li-desc')) ndLineItems[i].description = e.target.value;
-  if(e.target.classList.contains('li-unit')) ndLineItems[i].unit = e.target.value;
   if(e.target.classList.contains('li-qty')){ ndLineItems[i].qty = e.target.value; renderLineItems(); }
   if(e.target.classList.contains('li-price')){ ndLineItems[i].unitPrice = e.target.value; renderLineItems(); }
   recalcLedger();
+});
+$('ndLineItemsBody').addEventListener('change', (e)=>{
+  if(!e.target.classList.contains('li-unit')) return;
+  const i = e.target.dataset.i;
+  if(e.target.value === '__custom__'){
+    const custom = window.prompt('Enter a custom unit (e.g. "Bundle"):', '');
+    if(custom && custom.trim()) ndLineItems[i].unit = custom.trim().toUpperCase();
+    renderLineItems(); recalcLedger();
+  } else {
+    ndLineItems[i].unit = e.target.value;
+    recalcLedger();
+  }
 });
 $('ndLineItemsBody').addEventListener('click', (e)=>{
   if(e.target.classList.contains('li-remove')){
@@ -837,34 +914,36 @@ $('ndLineItemsBody').addEventListener('click', (e)=>{
   }
 });
 
-['ndLumpAmount','ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit']
+['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit']
   .forEach(id => $(id).addEventListener('input', recalcLedger));
 
 function computeFinancials(){
-  let subtotal;
-  if(ndBillingMode === 'LUMP_SUM') subtotal = Number($('ndLumpAmount').value) || 0;
-  else subtotal = ndLineItems.reduce((s,li)=> s + (Number(li.qty)||0) * (Number(li.unitPrice)||0), 0);
-
+  const subtotal = ndLineItems.reduce((s,li)=> s + (Number(li.qty)||0) * (Number(li.unitPrice)||0), 0);
   const adj = getCurrentAdjustments();
   const pctAmt = subtotal * (adj.taxPercent + adj.overheadPercent + adj.bondingPercent + adj.insurancePercent) / 100;
   const flatAmt = adj.scaffoldingFee + adj.riggingFee + adj.extraLabor + adj.extraMaterials;
   const totalAdjustments = pctAmt + flatAmt;
-  const grandTotal = subtotal + totalAdjustments;
+  const rawGrandTotal = subtotal + totalAdjustments;
 
   const docType = $('ndDocType').value;
   const project = getSelectedProject();
-  let previouslyReceived = 0, currentDue = grandTotal, remainingBalance = null;
-  let depositAmount = 0, amountDue = grandTotal;
+  let previouslyReceived = 0, currentDue = rawGrandTotal, remainingBalance = null;
+  let depositAmount = 0, amountDue = rawGrandTotal, grandTotal = rawGrandTotal;
+  const headlineOverride = ndHeadlineTouched ? (Number($('ndHeadlineAmount').value) || 0) : null;
 
+  if(docType === 'PROPOSAL'){
+    depositAmount = Number($('ndDeposit').value) || 0;
+    const defaultAmountDue = rawGrandTotal - depositAmount;
+    amountDue = headlineOverride !== null ? headlineOverride : defaultAmountDue;
+  }
+  if(docType === 'CHANGE_ORDER'){
+    grandTotal = headlineOverride !== null ? headlineOverride : rawGrandTotal;
+  }
   if(docType === 'INVOICE' && project){
     const l = getProjectLedger(project);
     previouslyReceived = l.received;
-    currentDue = ndCurrentDueTouched ? (Number($('ndCurrentDueInput').value) || 0) : grandTotal;
+    currentDue = headlineOverride !== null ? headlineOverride : rawGrandTotal;
     remainingBalance = l.revised - previouslyReceived - currentDue;
-  }
-  if(docType === 'PROPOSAL'){
-    depositAmount = Number($('ndDeposit').value) || 0;
-    amountDue = grandTotal - depositAmount;
   }
   return { subtotal, totalAdjustments, grandTotal, previouslyReceived, currentDue, remainingBalance, depositAmount, amountDue };
 }
@@ -881,7 +960,7 @@ function recalcLedger(){
   $('ndInvoiceLedgerRows').classList.toggle('hidden', !isInvoice);
   if(isInvoice){
     $('ndOutPrevReceived').textContent = '(' + money(f.previouslyReceived) + ')';
-    if(!ndCurrentDueTouched) $('ndCurrentDueInput').value = f.currentDue.toFixed(2);
+    $('ndOutCurrentDue').textContent = money(f.currentDue);
     $('ndOutRemaining').textContent = money(f.remainingBalance);
   }
   $('ndProposalDepositRow').classList.toggle('hidden', !isProposal);
@@ -889,6 +968,11 @@ function recalcLedger(){
   if(isProposal){
     $('ndOutDeposit').textContent = '(' + money(f.depositAmount) + ')';
     $('ndOutAmountDue').textContent = money(f.amountDue);
+  }
+
+  if(!ndHeadlineTouched){
+    const headlineVal = docType === 'PROPOSAL' ? f.amountDue : (docType === 'CHANGE_ORDER' ? f.grandTotal : f.currentDue);
+    $('ndHeadlineAmount').value = headlineVal.toFixed(2);
   }
 
   const coNote = $('ndCoLedgerNote');
@@ -913,31 +997,23 @@ function renderLivePreview(){
 
   $('pvDocTypeLabel').textContent = DOC_TITLE_MAP[docType];
 
-  const meta = getMetaInfo(docType, docNumber, $('ndDate').value, $('ndPO').value, $('ndDueDate').value, f);
+  const meta = getMetaInfo(docType, docNumber, $('ndDate').value, $('ndPO').value, getCurrentDueVal(), f);
   const metaRowsHtml = meta.rows.map((r,i)=>{
     const isLast = i === meta.rows.length - 1;
     return `<tr><td class="bg-[var(--shade)] font-bold" style="color:#5a554f">${escapeHtml(r[0])}</td>
       <td class="text-right ${isLast?'font-bold':''}" style="${isLast?'color:var(--orange)':''}">${escapeHtml(r[1])}</td></tr>`;
   }).join('');
 
-  const clientAddrLines = client ? [client.address, [client.phone, client.email].filter(Boolean).join('  /  ')].filter(Boolean).join('\n') : '';
-  const projectNameLine = project ? `PROJECT: ${escapeHtml(project.projectName)}` : 'PROJECT: —';
-  const projectAddrLines = project && project.jobAddress ? project.jobAddress : '';
-  const lumpNote = (ndBillingMode === 'LUMP_SUM' && $('ndLumpDesc').value.trim())
-    ? `<p class="text-[11px] mb-3" style="color:#6e675d; white-space:pre-line">${escapeHtml($('ndLumpDesc').value.trim())}</p>` : '';
+  const clientAddrOneLine = client ? addressOneLine(client.address) : '';
+  const clientContactLine = client ? [client.phone, client.email].filter(Boolean).join('  /  ') : '';
+  const projectAddrOneLine = project ? addressOneLine(project.jobAddress) : '';
+  const scopeHtml = isScopeEmpty() ? '' : scopeEditor.innerHTML;
 
-  let itemsHead, itemsRows;
-  if(ndBillingMode === 'ITEMIZED'){
-    itemsHead = '<tr><th>Description</th><th>Qty</th><th>Unit</th><th class="text-right">Unit Price</th><th class="text-right">Amount</th></tr>';
-    itemsRows = ndLineItems.map(li=>{
-      const amt = (Number(li.qty)||0) * (Number(li.unitPrice)||0);
-      return `<tr><td>${escapeHtml(li.description||'—')}</td><td>${escapeHtml(String(li.qty||''))}</td><td>${escapeHtml(li.unit||'')}</td><td class="text-right">${money(li.unitPrice)}</td><td class="text-right">${money(amt)}</td></tr>`;
-    }).join('');
-  } else {
-    itemsHead = '<tr><th>Items</th><th>Quantity</th><th class="text-right">Price</th><th class="text-right">Amount</th></tr>';
-    const amt = Number($('ndLumpAmount').value) || 0;
-    itemsRows = `<tr><td>${escapeHtml($('ndLumpDesc').value.trim() || 'Scope of Work')}</td><td>1 LS</td><td class="text-right">${money(amt)}</td><td class="text-right">${money(amt)}</td></tr>`;
-  }
+  const itemsHead = '<tr><th>Description</th><th>Qty</th><th>Unit</th><th class="text-right">Unit Price</th><th class="text-right">Amount</th></tr>';
+  const itemsRows = ndLineItems.map(li=>{
+    const amt = (Number(li.qty)||0) * (Number(li.unitPrice)||0);
+    return `<tr><td>${escapeHtml(li.description||'—')}</td><td>${escapeHtml(String(li.qty||''))}</td><td>${escapeHtml(li.unit||'')}</td><td class="text-right">${money(li.unitPrice)}</td><td class="text-right">${money(amt)}</td></tr>`;
+  }).join('');
 
   const totals = buildTotalsRows(f, docType, project, ledger, adj);
   const totalsRowsHtml = totals.rows.map(r=>{
@@ -972,10 +1048,11 @@ function renderLivePreview(){
     </div>
     <div class="pv-bar mb-2">Bill To</div>
     <p class="font-bold text-sm">${client ? escapeHtml(client.companyName) : 'Client not on file'}</p>
-    <p class="text-[11px] mb-3" style="color:#6e675d; white-space:pre-line">${escapeHtml(clientAddrLines)}</p>
-    <p class="font-bold text-[12px] mb-1">${projectNameLine}</p>
-    ${projectAddrLines ? `<p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(projectAddrLines)}</p>` : ''}
-    ${lumpNote}
+    <p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientAddrOneLine)}</p>
+    ${clientContactLine ? `<p class="text-[11px] mb-3" style="color:#6e675d">${escapeHtml(clientContactLine)}</p>` : '<div class="mb-3"></div>'}
+    <p class="font-bold text-[12px] mb-1">PROJECT: ${project ? escapeHtml(project.projectName) : '—'}</p>
+    ${projectAddrOneLine ? `<p class="text-[11px] mb-2" style="color:#6e675d">${escapeHtml(projectAddrOneLine)}</p>` : ''}
+    ${scopeHtml ? `<div class="text-[11px] mb-3 nd-scope-render" style="color:#4a4540">${scopeHtml}</div>` : ''}
     <table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>
     <div class="flex justify-end mb-4">
       <table class="pv-totals w-64"><tbody>${totalsRowsHtml}</tbody></table>
@@ -991,9 +1068,10 @@ function renderLivePreview(){
 $('ndResetBtn').addEventListener('click', resetNewDocForm);
 function resetNewDocForm(){
   $('ndPO').value = ''; $('ndDueDate').value = ''; $('ndDate').value = todayISO();
-  $('ndLumpDesc').value = ''; $('ndLumpAmount').value = 0; $('ndNotes').value = ''; $('ndDeposit').value = 0;
+  $('ndDueUponReceipt').checked = false; $('ndDueDate').disabled = false;
+  scopeEditor.innerHTML = ''; $('ndScopeFontSize').value = '11'; $('ndNotes').value = ''; $('ndDeposit').value = 0;
   ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
-  renderLineItems(); setBillingMode('LUMP_SUM');
+  renderLineItems();
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
   onNdContextChange();
@@ -1005,25 +1083,17 @@ $('ndSaveBtn').addEventListener('click', ()=>{
   if(!project){ alert('Select a client company and project first.'); return; }
   const docType = $('ndDocType').value;
 
-  let lineItems;
-  if(ndBillingMode === 'ITEMIZED'){
-    lineItems = ndLineItems.filter(li => (li.description && li.description.trim()) || Number(li.unitPrice))
-      .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
-    if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
-  } else {
-    const amt = Number($('ndLumpAmount').value) || 0;
-    if(amt <= 0){ alert('Enter a lump sum amount greater than zero.'); return; }
-    lineItems = [{ description: $('ndLumpDesc').value || 'Lump Sum Scope of Work', qty:1, unit:'LS', unitPrice:amt, total:amt }];
-  }
+  const lineItems = ndLineItems.filter(li => (li.description && li.description.trim()) || Number(li.unitPrice))
+    .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
+  if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
 
   const f = computeFinancials();
   const docNumber = $('ndDocNumber').value.trim() || nextDocNumber(project, docType, $('ndDate').value);
 
   const doc = {
     id: uid(), projectId: project.id, docType, docNumber,
-    date: $('ndDate').value || todayISO(), poReference: $('ndPO').value.trim(), dueDate: $('ndDueDate').value,
-    billingMode: ndBillingMode, lineItems,
-    lumpSumSummary: ndBillingMode === 'LUMP_SUM' ? ($('ndLumpDesc').value || '') : null,
+    date: $('ndDate').value || todayISO(), poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(),
+    lineItems, scopeOfWork: isScopeEmpty() ? '' : scopeEditor.innerHTML.trim(),
     adjustments: getCurrentAdjustments(),
     financials: {
       subtotal: f.subtotal, totalAdjustments: f.totalAdjustments, grandTotal: f.grandTotal,
@@ -1127,6 +1197,73 @@ function renderHistoryTab(){
   }
 }
 
+/* Converts the Scope of Work rich-text HTML into block-level {text,bold,italic,sizePx,indent,bullet}
+   entries for the PDF. Formatting is approximated at the block (line/paragraph) level rather than
+   per-character, which covers the common case of bold headers + plain body text + bullet/numbered lists. */
+function parseScopeBlocks(html){
+  if(!html || !html.trim()) return [];
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  function pxFromStyle(el){
+    const m = (el.style && el.style.fontSize || '').match(/([\d.]+)px/);
+    return m ? parseFloat(m[1]) : null;
+  }
+  function indentFromStyle(el){
+    const ml = parseFloat((el.style && el.style.marginLeft) || '0') || 0;
+    const pl = parseFloat((el.style && el.style.paddingLeft) || '0') || 0;
+    return Math.round(Math.max(ml, pl) / 40);
+  }
+  function blockInfo(el, indent){
+    const text = el.textContent.replace(/\u00a0/g,' ').trim();
+    if(!text) return null;
+    const boldEls = el.querySelectorAll ? el.querySelectorAll('b,strong') : [];
+    const italicEls = el.querySelectorAll ? el.querySelectorAll('i,em') : [];
+    const boldLen = Array.from(boldEls).reduce((s,e)=>s+e.textContent.length,0);
+    const italicLen = Array.from(italicEls).reduce((s,e)=>s+e.textContent.length,0);
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    const isBold = tag === 'b' || tag === 'strong' || boldLen >= text.length * 0.8;
+    const isItalic = tag === 'i' || tag === 'em' || italicLen >= text.length * 0.8;
+    let sizePx = pxFromStyle(el);
+    if(!sizePx){
+      const sized = el.querySelector && el.querySelector('font[style*="font-size"],span[style*="font-size"]');
+      if(sized) sizePx = pxFromStyle(sized);
+    }
+    return { text, bold: isBold, italic: isItalic, sizePx, indent: indent + indentFromStyle(el) };
+  }
+
+  const blocks = [];
+  function walk(node, indent){
+    Array.from(node.childNodes).forEach(child=>{
+      if(child.nodeType !== 1) return;
+      const tag = child.tagName.toLowerCase();
+      if(tag === 'ul' || tag === 'ol'){
+        Array.from(child.children).forEach((li, idx)=>{
+          const info = blockInfo(li, indent + 1);
+          if(info){ info.bullet = tag === 'ul' ? '•' : (idx+1) + '.'; blocks.push(info); }
+        });
+      } else if(tag === 'blockquote'){
+        walk(child, indent + 1);
+      } else if(['div','p','li'].includes(tag)){
+        const info = blockInfo(child, indent);
+        if(info) blocks.push(info);
+      } else {
+        const info = blockInfo(child, indent);
+        if(info) blocks.push(info);
+      }
+    });
+  }
+
+  const hasBlockChildren = Array.from(container.children).some(c => ['div','p','ul','ol','blockquote'].includes(c.tagName.toLowerCase()));
+  if(!hasBlockChildren){
+    const info = blockInfo(container, 0);
+    if(info) blocks.push(info);
+  } else {
+    walk(container, 0);
+  }
+  return blocks;
+}
+
 /* ============================ PDF GENERATION ============================ */
 function generatePDF(doc){
   const project = DB.projects.find(p=>p.id===doc.projectId);
@@ -1171,52 +1308,61 @@ function generatePDF(doc){
   pdf.text(client ? client.companyName : 'Client not on file', margin, y);
   y += 13;
   pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
-  const clientLines = client ? [client.address, [client.phone, client.email].filter(Boolean).join('  /  ')].filter(Boolean).join('\n') : '';
-  if(clientLines){
-    clientLines.split('\n').forEach(line => {
-      const wrapped = pdf.splitTextToSize(line, pageWidth - margin*2);
-      pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
-    });
+  const clientAddrLine = client ? addressOneLine(client.address) : '';
+  if(clientAddrLine){
+    const wrapped = pdf.splitTextToSize(clientAddrLine, pageWidth - margin*2);
+    pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
   }
+  const clientContactLine = client ? [client.phone, client.email].filter(Boolean).join('  /  ') : '';
+  if(clientContactLine){ pdf.text(clientContactLine, margin, y); y += 11.5; }
   y += 6;
 
   pdf.setFont('helvetica','bold'); pdf.setFontSize(9.5); pdf.setTextColor(...INK);
   pdf.text(`PROJECT: ${project.projectName}`, margin, y, { maxWidth: pageWidth - margin*2 });
   y += 13;
-  if(project.jobAddress){
+  const projectAddrLine = addressOneLine(project.jobAddress);
+  if(projectAddrLine){
     pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
-    project.jobAddress.split('\n').forEach(line => {
-      const wrapped = pdf.splitTextToSize(line, pageWidth - margin*2);
-      pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
-    });
+    const wrapped = pdf.splitTextToSize(projectAddrLine, pageWidth - margin*2);
+    pdf.text(wrapped, margin, y); y += wrapped.length * 11.5;
   }
   y += 4;
-  if(doc.billingMode === 'LUMP_SUM' && doc.lumpSumSummary){
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(...GREY);
-    const wrapped = pdf.splitTextToSize(doc.lumpSumSummary, pageWidth - margin*2);
-    pdf.text(wrapped, margin, y); y += wrapped.length * 11 + 6;
-  } else y += 6;
 
-  if(doc.billingMode === 'ITEMIZED'){
-    pdf.autoTable({
-      startY: y, margin: { left: margin, right: margin },
-      head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
-      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
-      styles: { fontSize: 9, cellPadding: 5, textColor: INK },
-      alternateRowStyles: { fillColor: [252,250,249] },
-      body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
-      columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
+  const scopeRaw = (doc.scopeOfWork || '').trim();
+  const isRichScope = /<[a-z][\s\S]*>/i.test(scopeRaw);
+  if(isRichScope){
+    const blocks = parseScopeBlocks(scopeRaw);
+    blocks.forEach(b=>{
+      if(y > pageHeight - 140){ pdf.addPage(); y = 50; }
+      const sizePt = b.sizePx ? Math.max(7, Math.min(20, b.sizePx * 0.75)) : 9;
+      pdf.setFont('helvetica', b.bold && b.italic ? 'bolditalic' : (b.bold ? 'bold' : (b.italic ? 'italic' : 'normal')));
+      pdf.setFontSize(sizePt);
+      pdf.setTextColor(70,65,60);
+      const indentPt = margin + (b.indent || 0) * 16;
+      const prefix = b.bullet ? b.bullet + ' ' : '';
+      const wrapped = pdf.splitTextToSize(prefix + b.text, pageWidth - indentPt - margin);
+      pdf.text(wrapped, indentPt, y);
+      y += wrapped.length * (sizePt * 1.15) + 2;
     });
+    if(blocks.length) y += 6; else y += 6;
   } else {
-    pdf.autoTable({
-      startY: y, margin: { left: margin, right: margin },
-      head: [['ITEMS','QUANTITY','PRICE','AMOUNT']],
-      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
-      styles: { fontSize: 9, cellPadding: 5, textColor: INK },
-      body: [[ doc.lineItems[0].description || 'Scope of Work', '1 ' + (doc.lineItems[0].unit || 'LS'), money(doc.lineItems[0].unitPrice), money(doc.lineItems[0].total) ]],
-      columnStyles: { 1:{halign:'center', cellWidth:70}, 2:{halign:'right', cellWidth:80}, 3:{halign:'right', cellWidth:80} }
-    });
+    const legacyText = scopeRaw || (doc.lumpSumSummary || '').trim();
+    if(legacyText){
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(70,65,60);
+      const wrapped = pdf.splitTextToSize(legacyText, pageWidth - margin*2);
+      pdf.text(wrapped, margin, y); y += wrapped.length * 11 + 8;
+    } else y += 6;
   }
+
+  pdf.autoTable({
+    startY: y, margin: { left: margin, right: margin },
+    head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
+    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
+    styles: { fontSize: 9, cellPadding: 5, textColor: INK },
+    alternateRowStyles: { fillColor: [252,250,249] },
+    body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
+    columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
+  });
   y = pdf.lastAutoTable.finalY + 14;
 
   const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments);
