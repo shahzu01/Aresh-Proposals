@@ -159,8 +159,9 @@
               <select id="ndProjectSelect" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
             </div>
             <div>
-              <label class="field-label">Document #</label>
+              <label class="field-label">Document # (global)</label>
               <input id="ndDocNumber" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm font-medium" placeholder="Auto-suggested">
+              <p class="text-[11px] text-[#8a8375] mt-1" id="ndProjectDocNumberPreview">Project doc #: —</p>
             </div>
             <div>
               <label class="field-label">Date</label>
@@ -189,6 +190,7 @@
             <option value="INVOICE">Invoice</option>
           </select>
           <p id="ndProjectHint" class="text-xs text-[var(--orange-dark)] mt-3 hidden"></p>
+          <p id="ndGeneratedFromNote" class="text-xs bg-[var(--concrete)] border border-[var(--line)] rounded px-2 py-1.5 mt-2 hidden"></p>
         </div>
 
         <div class="card p-4 sm:p-5">
@@ -312,6 +314,7 @@
               <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                 <th class="p-2">Type</th>
                 <th class="p-2">Doc #</th>
+                <th class="p-2">Project ID</th>
                 <th class="p-2">Client</th>
                 <th class="p-2">Project</th>
                 <th class="p-2">Date</th>
@@ -463,7 +466,7 @@ function defaultDB(){
     companies: [],
     projects:  [],
     documents: [],
-    meta: { nextProjectSeq: 1 }
+    meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 2 }
   };
 }
 
@@ -476,10 +479,13 @@ function loadDB(){
     DB.projects  = DB.projects  || [];
     DB.documents = DB.documents || [];
     DB.meta = DB.meta || { nextProjectSeq: 1 };
+    DB.meta.projectCounters = DB.meta.projectCounters || {};
+    DB.meta.docCounters = DB.meta.docCounters || {};
   }catch(e){
     console.error('Failed to load local data, starting fresh.', e);
     DB = defaultDB();
   }
+  migrateSchema();
 }
 function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
 
@@ -498,11 +504,19 @@ function formatDateLong(s){
 }
 function joinAddressLines(l1, l2, l3){ return [l1, l2, l3].map(s => (s||'').trim()).filter(Boolean).join('\n'); }
 function addressOneLine(addr){ return addr ? addr.replace(/\n+/g, ', ') : ''; }
+function sanitizeFilenamePart(str){
+  return (str || '').toString()
+    .replace(/[\/\\:*?"<>|]/g, '')
+    .replace(/,/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
 
 const DOC_TITLE_MAP = { PROPOSAL:'PROPOSAL', CHANGE_ORDER:'CHANGE ORDER', INVOICE:'INVOICE' };
 const DOC_NUMBER_LABEL_MAP = { PROPOSAL:'Proposal #', CHANGE_ORDER:'Change Order #', INVOICE:'Invoice #' };
 const DOC_TYPE_LABEL = { PROPOSAL:'Proposal', CHANGE_ORDER:'Change Order', INVOICE:'Invoice' };
 const HEADLINE_LABEL_MAP = { PROPOSAL:'Amount Due ($)', CHANGE_ORDER:'Grand Total ($)', INVOICE:'Current Due ($)' };
+const DOC_TYPE_CODE = { PROPOSAL:'PROP', CHANGE_ORDER:'CO', INVOICE:'INV' };
 
 /* ------------------------- Project ledger math ------------------------ */
 function getProjectLedger(project){
@@ -518,18 +532,90 @@ function getProjectLedger(project){
   return { approvedCO, revised, billed, received, remaining, original };
 }
 
-function nextDocNumber(project, docType, dateStr){
-  const year = new Date(dateStr || Date.now()).getFullYear();
-  if(docType === 'PROPOSAL'){
-    const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'PROPOSAL').length + 1;
-    return `PROP-${year}-${project.seq}-${pad2(n)}`;
-  }
-  if(docType === 'CHANGE_ORDER'){
-    const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER').length + 1;
-    return `CO-${pad2(n)}`;
-  }
-  const n = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE').length + 1;
-  return `INV-${pad2(n)}`;
+/* ------------------- Project IDs & document numbering -------------------
+   Global document numbers (TYPE-YYYY-#####) and project-specific numbers
+   (TYPE-###) are each backed by a persistent counter. Counters only ever
+   increment — deleting a document never frees or reuses its number. */
+function generateProjectCode(year){
+  DB.meta.projectCounters = DB.meta.projectCounters || {};
+  const n = (DB.meta.projectCounters[year] || 0) + 1;
+  DB.meta.projectCounters[year] = n;
+  return `PRJ-${year}-${String(n).padStart(3,'0')}`;
+}
+function peekNextGlobalDocNumber(docType, year){
+  const code = DOC_TYPE_CODE[docType];
+  const counters = (DB.meta.docCounters && DB.meta.docCounters[code]) || {};
+  const n = (counters[year] || 0) + 1;
+  return `${code}-${year}-${String(n).padStart(5,'0')}`;
+}
+function commitGlobalDocNumber(docType, year){
+  const code = DOC_TYPE_CODE[docType];
+  DB.meta.docCounters = DB.meta.docCounters || {};
+  DB.meta.docCounters[code] = DB.meta.docCounters[code] || {};
+  const n = (DB.meta.docCounters[code][year] || 0) + 1;
+  DB.meta.docCounters[code][year] = n;
+  return `${code}-${year}-${String(n).padStart(5,'0')}`;
+}
+function peekNextProjectDocNumber(project, docType){
+  const code = DOC_TYPE_CODE[docType];
+  const n = ((project && project.docCounters && project.docCounters[code]) || 0) + 1;
+  return `${code}-${String(n).padStart(3,'0')}`;
+}
+function commitProjectDocNumber(project, docType){
+  const code = DOC_TYPE_CODE[docType];
+  project.docCounters = project.docCounters || {};
+  const n = (project.docCounters[code] || 0) + 1;
+  project.docCounters[code] = n;
+  return `${code}-${String(n).padStart(3,'0')}`;
+}
+function buildFilename(doc, project, client){
+  const projectCode = (project && project.projectCode) || 'PRJ-UNKNOWN';
+  const dateStr = doc.date && doc.date !== 'UPON_RECEIPT' ? doc.date : todayISO();
+  const companyPart = sanitizeFilenamePart(client ? client.companyName : 'Client');
+  const projectPart = sanitizeFilenamePart(project ? project.projectName : 'Project');
+  let name = `${projectCode}_${doc.docNumber}_${dateStr}_${companyPart}_${projectPart}`;
+  if(doc.revisionNumber){ name += `_REV-${pad2(doc.revisionNumber)}`; }
+  return name + '.pdf';
+}
+
+/* One-time migration: assigns Project IDs and global/project document numbers
+   to any records created before this numbering system existed. Never re-runs
+   once schemaVersion is current, and never deletes or overwrites existing data. */
+function migrateSchema(){
+  DB.meta = DB.meta || {};
+  if((DB.meta.schemaVersion || 0) >= 2) return;
+  DB.meta.projectCounters = DB.meta.projectCounters || {};
+  DB.meta.docCounters = DB.meta.docCounters || {};
+  const currentYear = new Date().getFullYear();
+
+  DB.projects.forEach(p=>{
+    if(!p.projectCode){
+      const y = p.startDate ? new Date(p.startDate).getFullYear() : currentYear;
+      p.projectCode = generateProjectCode(isNaN(y) ? currentYear : y);
+    }
+    p.createdAt = p.createdAt || Date.now();
+    p.updatedAt = p.updatedAt || Date.now();
+    p.docCounters = p.docCounters || {};
+  });
+
+  const legacyPattern = /^(PROP|CO|INV)-\d{4}-\d{5}$/;
+  const toMigrate = DB.documents.filter(d => !d.projectNumber).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+  toMigrate.forEach(d=>{
+    const project = DB.projects.find(p=>p.id===d.projectId);
+    const y = d.date ? new Date(d.date).getFullYear() : currentYear;
+    const year = isNaN(y) ? currentYear : y;
+    if(!legacyPattern.test(d.docNumber || '')){
+      d.legacyDocNumber = d.docNumber;
+      d.docNumber = commitGlobalDocNumber(d.docType, year);
+    }
+    d.projectNumber = project ? commitProjectDocNumber(project, d.docType) : (d.projectNumber || '—');
+    d.revisionNumber = d.revisionNumber || 0;
+    d.generatedFrom = d.generatedFrom || null;
+    d.updatedAt = d.updatedAt || d.createdAt || Date.now();
+  });
+
+  DB.meta.schemaVersion = 2;
+  saveDB();
 }
 
 /* Shared row-builders used by BOTH the live preview and the PDF, so they can never drift apart */
@@ -655,7 +741,7 @@ function fillProjectSelect(selectEl, companyId, selectedId){
   const list = DB.projects.filter(p => p.companyId === companyId);
   const current = selectedId !== undefined ? selectedId : selectEl.value;
   selectEl.innerHTML = '<option value="">Select project…</option>' +
-    list.map(p => `<option value="${p.id}">${escapeHtml(p.projectName)}</option>`).join('');
+    list.map(p => `<option value="${p.id}">${p.projectCode ? '[' + escapeHtml(p.projectCode) + '] ' : ''}${escapeHtml(p.projectName)}</option>`).join('');
   if(current && list.some(p=>p.id===current)) selectEl.value = current;
 }
 
@@ -725,10 +811,13 @@ $('addProjectForm').addEventListener('submit', (e)=>{
   if(!companyId){ alert('Select a client company first.'); return; }
   const name = $('projName').value.trim();
   if(!name) return;
+  const now = Date.now();
   DB.projects.push({
     id: uid(), seq: DB.meta.nextProjectSeq++, companyId, projectName: name,
+    projectCode: generateProjectCode(new Date().getFullYear()),
     jobAddress: joinAddressLines($('projAddress1').value, $('projAddress2').value, $('projAddress3').value), startDate: $('projStart').value,
-    originalContractTotal: Number($('projContract').value) || 0
+    originalContractTotal: Number($('projContract').value) || 0,
+    docCounters: {}, createdAt: now, updatedAt: now
   });
   saveDB(); e.target.reset(); $('projContract').value = 0;
   renderAllSelects(); renderProjectsList();
@@ -745,6 +834,7 @@ function renderProjectsList(){
     return `<div class="border border-[var(--line)] rounded-lg p-3">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
+          <p class="text-[11px] font-mono text-[var(--orange-dark)] font-semibold">${escapeHtml(p.projectCode || '—')}</p>
           <p class="font-medium text-sm truncate">${escapeHtml(p.projectName)}</p>
           <p class="text-xs text-[#8a8375] truncate">${escapeHtml(addressOneLine(p.jobAddress) || '—')}</p>
         </div>
@@ -774,8 +864,9 @@ let ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
 let ndDocNumberTouched = false;
 let ndHeadlineTouched = false;
 let ndLastSavedDoc = null;
+let ndGeneratedFrom = null;
 
-function resetFieldOverrides(){ ndDocNumberTouched = false; ndHeadlineTouched = false; }
+function resetFieldOverrides(){ ndDocNumberTouched = false; ndHeadlineTouched = false; ndGeneratedFrom = null; }
 function getSelectedProject(){ return DB.projects.find(p=>p.id === $('ndProjectSelect').value) || null; }
 function getSelectedClient(project){ return project ? DB.companies.find(c=>c.id===project.companyId) : null; }
 function getCurrentAdjustments(){
@@ -845,19 +936,32 @@ $('ndDueUponReceipt').addEventListener('change', ()=>{
 function onNdContextChange(){
   const project = getSelectedProject();
   const hint = $('ndProjectHint');
+  const docType = $('ndDocType').value;
   if(project){
     const l = getProjectLedger(project);
     hint.classList.remove('hidden');
-    hint.textContent = `Revised contract: ${money(l.revised)}  ·  Billed to date: ${money(l.billed)}  ·  Remaining: ${money(l.remaining)}`;
-    if(!ndDocNumberTouched) $('ndDocNumber').value = nextDocNumber(project, $('ndDocType').value, $('ndDate').value);
+    hint.textContent = `${project.projectCode}  ·  Revised contract: ${money(l.revised)}  ·  Billed to date: ${money(l.billed)}  ·  Remaining: ${money(l.remaining)}`;
+    const year = new Date($('ndDate').value || Date.now()).getFullYear();
+    if(!ndDocNumberTouched) $('ndDocNumber').value = peekNextGlobalDocNumber(docType, isNaN(year) ? new Date().getFullYear() : year);
+    $('ndProjectDocNumberPreview').textContent = 'Project doc #: ' + peekNextProjectDocNumber(project, docType) + ' (auto)';
   } else {
     hint.classList.add('hidden');
     if(!ndDocNumberTouched) $('ndDocNumber').value = '';
+    $('ndProjectDocNumberPreview').textContent = 'Project doc #: —';
+  }
+  const genNote = $('ndGeneratedFromNote');
+  if(ndGeneratedFrom){
+    genNote.classList.remove('hidden');
+    genNote.innerHTML = `Generated from Proposal <strong>${escapeHtml(ndGeneratedFrom.docNumber)}</strong> — <button id="ndClearGeneratedFrom" class="text-[var(--orange)] underline">clear link</button>`;
+    const clearBtn = $('ndClearGeneratedFrom');
+    if(clearBtn) clearBtn.addEventListener('click', ()=>{ ndGeneratedFrom = null; onNdContextChange(); });
+  } else {
+    genNote.classList.add('hidden');
   }
   $('ndPdfBtn').setAttribute('disabled','disabled');
   ndLastSavedDoc = null;
   markDirty();
-  const heading = project ? `${project.projectName} — ${DOC_TYPE_LABEL[$('ndDocType').value]}` : 'New Document';
+  const heading = project ? `${project.projectCode} — ${project.projectName} — ${DOC_TYPE_LABEL[docType]}` : 'New Document';
   $('ndHeading').textContent = heading;
   recalcLedger();
 }
@@ -1050,7 +1154,7 @@ function renderLivePreview(){
     <p class="font-bold text-sm">${client ? escapeHtml(client.companyName) : 'Client not on file'}</p>
     <p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientAddrOneLine)}</p>
     ${clientContactLine ? `<p class="text-[11px] mb-3" style="color:#6e675d">${escapeHtml(clientContactLine)}</p>` : '<div class="mb-3"></div>'}
-    <p class="font-bold text-[12px] mb-1">PROJECT: ${project ? escapeHtml(project.projectName) : '—'}</p>
+    <p class="font-bold text-[12px] mb-1">PROJECT: ${project ? escapeHtml(project.projectName) : '—'}${project && project.projectCode ? `  <span class="font-normal" style="color:#8a8375">(${escapeHtml(project.projectCode)})</span>` : ''}</p>
     ${projectAddrOneLine ? `<p class="text-[11px] mb-2" style="color:#6e675d">${escapeHtml(projectAddrOneLine)}</p>` : ''}
     ${scopeHtml ? `<div class="text-[11px] mb-3 nd-scope-render" style="color:#4a4540">${scopeHtml}</div>` : ''}
     <table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>
@@ -1087,12 +1191,25 @@ $('ndSaveBtn').addEventListener('click', ()=>{
     .map(li => ({ description: li.description || '', qty: Number(li.qty) || 0, unit: li.unit || '', unitPrice: Number(li.unitPrice) || 0, total: (Number(li.qty)||0) * (Number(li.unitPrice)||0) }));
   if(lineItems.length === 0){ alert('Add at least one line item.'); return; }
 
+  const enteredNumber = $('ndDocNumber').value.trim();
+  if(enteredNumber && DB.documents.some(d => (d.docNumber || '').toLowerCase() === enteredNumber.toLowerCase())){
+    alert('Document number "' + enteredNumber + '" is already in use on another document. Choose a different number, or clear the field to use the auto-generated one.');
+    return;
+  }
+
   const f = computeFinancials();
-  const docNumber = $('ndDocNumber').value.trim() || nextDocNumber(project, docType, $('ndDate').value);
+  const dateVal = $('ndDate').value || todayISO();
+  const year = new Date(dateVal).getFullYear();
+  const globalNumber = commitGlobalDocNumber(docType, isNaN(year) ? new Date().getFullYear() : year);
+  const docNumber = enteredNumber || globalNumber;
+  const projectNumber = commitProjectDocNumber(project, docType);
+  const now = Date.now();
+  project.updatedAt = now;
 
   const doc = {
-    id: uid(), projectId: project.id, docType, docNumber,
-    date: $('ndDate').value || todayISO(), poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(),
+    id: uid(), projectId: project.id, docType, docNumber, projectNumber,
+    revisionNumber: 0, generatedFrom: ndGeneratedFrom || null,
+    date: dateVal, poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(),
     lineItems, scopeOfWork: isScopeEmpty() ? '' : scopeEditor.innerHTML.trim(),
     adjustments: getCurrentAdjustments(),
     financials: {
@@ -1101,18 +1218,19 @@ $('ndSaveBtn').addEventListener('click', ()=>{
       depositAmount: f.depositAmount, amountDue: f.amountDue
     },
     notes: $('ndNotes').value.trim(),
-    createdAt: Date.now()
+    createdAt: now, updatedAt: now
   };
 
   DB.documents.push(doc);
   saveDB();
   ndLastSavedDoc = doc;
+  ndGeneratedFrom = null;
   $('ndPdfBtn').removeAttribute('disabled');
   $('ndDocNumber').value = docNumber;
   onNdContextChange();
   $('ndPdfBtn').removeAttribute('disabled');
   markSaved();
-  alert('Saved ' + docNumber + '.');
+  alert('Saved ' + docNumber + ' (project doc #: ' + projectNumber + ').');
 });
 
 $('ndPdfBtn').addEventListener('click', ()=>{ if(ndLastSavedDoc) generatePDF(ndLastSavedDoc); });
@@ -1126,14 +1244,18 @@ function renderAllDocs(){
   body.innerHTML = docs.map(d=>{
     const project = DB.projects.find(p=>p.id===d.projectId);
     const client = project ? DB.companies.find(c=>c.id===project.companyId) : null;
+    const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
+    const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="adConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span></td>
+      <td class="p-2 font-mono text-xs">${escapeHtml(project ? project.projectCode : '—')}</td>
       <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
       <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
       <td class="p-2">${escapeHtml(d.date)}</td>
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
       <td class="p-2 text-right whitespace-nowrap">
+        ${convertBtn}
         <button data-id="${d.id}" class="adPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
         <button data-id="${d.id}" class="adDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
       </td>
@@ -1147,6 +1269,41 @@ function renderAllDocs(){
     DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
     saveDB(); renderAllDocs();
   }));
+  body.querySelectorAll('.adConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
+}
+
+/* Pre-fills a new Invoice from a saved Proposal and links the two documents together */
+function convertToInvoice(sourceDocId){
+  const src = DB.documents.find(d=>d.id===sourceDocId);
+  if(!src || src.docType !== 'PROPOSAL'){ alert('Only Proposals can be converted to an Invoice.'); return; }
+  const project = DB.projects.find(p=>p.id===src.projectId);
+  if(!project){ alert('Project not found for this proposal.'); return; }
+
+  switchView('newdoc');
+  $('ndCompanySelect').value = project.companyId;
+  fillProjectSelect($('ndProjectSelect'), project.companyId, project.id);
+  $('ndProjectSelect').value = project.id;
+  $('ndDocType').value = 'INVOICE';
+  syncDocTypeTabs();
+
+  ndLineItems = src.lineItems.map(li => Object.assign({}, li));
+  renderLineItems();
+  scopeEditor.innerHTML = src.scopeOfWork || '';
+  $('ndTax').value = src.adjustments.taxPercent || 0;
+  $('ndOverhead').value = src.adjustments.overheadPercent || 0;
+  $('ndBonding').value = src.adjustments.bondingPercent || 0;
+  $('ndInsurance').value = src.adjustments.insurancePercent || 0;
+  $('ndScaffold').value = src.adjustments.scaffoldingFee || 0;
+  $('ndRigging').value = src.adjustments.riggingFee || 0;
+  $('ndExtraLabor').value = src.adjustments.extraLabor || 0;
+  $('ndExtraMaterials').value = src.adjustments.extraMaterials || 0;
+  $('ndDate').value = todayISO();
+  $('ndPO').value = src.poReference || '';
+
+  resetFieldOverrides();
+  ndGeneratedFrom = { documentId: src.id, docNumber: src.docNumber };
+  onNdContextChange();
+  setViewMode('split');
 }
 
 /* ============================ PROJECT LEDGERS =========================== */
@@ -1163,6 +1320,7 @@ function renderHistoryTab(){
   const l = getProjectLedger(project);
   ledgerCard.classList.remove('hidden'); docsCard.classList.remove('hidden');
   $('hsLedgerBox').innerHTML = `
+    <div class="ledger-row"><span>Project ID</span><span class="font-mono">${escapeHtml(project.projectCode || '—')}</span></div>
     <div class="ledger-row"><span>Original Contract Total</span><span>${money(project.originalContractTotal)}</span></div>
     <div class="ledger-row"><span>Approved Change Orders</span><span>${money(l.approvedCO)}</span></div>
     <div class="ledger-row total"><span>Revised Contract Total</span><span>${money(l.revised)}</span></div>
@@ -1175,17 +1333,21 @@ function renderHistoryTab(){
   if(docs.length === 0){ body.innerHTML = ''; $('hsNoDocs').classList.remove('hidden'); }
   else {
     $('hsNoDocs').classList.add('hidden');
-    body.innerHTML = docs.map(d=>`
-      <tr class="border-b border-[var(--line)]">
+    body.innerHTML = docs.map(d=>{
+      const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
+      const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="hsConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
+      return `<tr class="border-b border-[var(--line)]">
         <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
+        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span></td>
         <td class="p-2">${escapeHtml(d.date)}</td>
         <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
         <td class="p-2 text-right whitespace-nowrap">
+          ${convertBtn}
           <button data-id="${d.id}" class="hsPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">Download PDF</button>
           <button data-id="${d.id}" class="hsDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     body.querySelectorAll('.hsPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{
       const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc);
     }));
@@ -1194,6 +1356,7 @@ function renderHistoryTab(){
       DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
       saveDB(); renderHistoryTab();
     }));
+    body.querySelectorAll('.hsConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   }
 }
 
@@ -1318,7 +1481,7 @@ function generatePDF(doc){
   y += 6;
 
   pdf.setFont('helvetica','bold'); pdf.setFontSize(9.5); pdf.setTextColor(...INK);
-  pdf.text(`PROJECT: ${project.projectName}`, margin, y, { maxWidth: pageWidth - margin*2 });
+  pdf.text(`PROJECT: ${project.projectName}  (${project.projectCode || ''})`, margin, y, { maxWidth: pageWidth - margin*2 });
   y += 13;
   const projectAddrLine = addressOneLine(project.jobAddress);
   if(projectAddrLine){
@@ -1416,7 +1579,7 @@ function generatePDF(doc){
   const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('   •   ');
   pdf.text(brandLine || 'Site Ledger', pageWidth/2, pageHeight - 17, { align:'center' });
 
-  pdf.save(`${doc.docNumber}.pdf`);
+  pdf.save(buildFilename(doc, project, client));
 }
 
 /* ============================ GLOBAL RENDER ============================ */
