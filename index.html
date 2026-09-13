@@ -145,7 +145,7 @@
 
       <div class="card p-4 sm:p-5">
         <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Financial Summary</h2>
-        <div id="dashFinancialStats" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+        <div id="dashFinancialStats" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"></div>
       </div>
 
       <div class="card p-4 sm:p-5">
@@ -212,10 +212,11 @@
           <button id="pdArchiveBtn" class="btn-ghost text-xs px-3 py-2 rounded-md">Archive</button>
         </div>
       </div>
-      <div id="pdFinancialStrip" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mt-3"></div>
+      <div id="pdFinancialStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"></div>
       <div class="flex gap-4 mt-3 border-t border-[var(--line)] pt-2 overflow-x-auto">
         <button class="pd-tab" data-tab="overview">Overview</button>
         <button class="pd-tab" data-tab="documents">Documents</button>
+        <button class="pd-tab" data-tab="payments">Payments</button>
         <button class="pd-tab" data-tab="activity">Activity</button>
         <button class="pd-tab" data-tab="notes">Notes</button>
       </div>
@@ -242,6 +243,25 @@
             </table>
           </div>
           <p id="pdDocsEmpty" class="text-sm text-[#8a8375] mt-3 hidden">No documents in this category yet.</p>
+        </div>
+      </div>
+      <div id="pdPanel-payments" class="pd-panel hidden space-y-3">
+        <div class="text-right">
+          <button id="pdRecordPaymentBtn" class="btn-primary text-xs px-4 py-2 rounded-md">+ Record Payment</button>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[600px]">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                  <th class="p-2">Date</th><th class="p-2">Applied To</th><th class="p-2">Method</th><th class="p-2">Reference</th><th class="p-2 text-right">Amount</th><th class="p-2"></th>
+                </tr>
+              </thead>
+              <tbody id="pdPaymentsBody"></tbody>
+            </table>
+          </div>
+          <p id="pdPaymentsEmpty" class="text-sm text-[#8a8375] mt-3 hidden">No payments recorded yet.</p>
+          <div class="ledger-row total mt-2"><span>Total Payments</span><span id="pdPaymentsTotal">$0.00</span></div>
         </div>
       </div>
       <div id="pdPanel-activity" class="pd-panel hidden">
@@ -339,12 +359,30 @@
             <div>
               <label class="field-label" id="ndHeadlineLabel">Amount Due ($)</label>
               <input id="ndHeadlineAmount" type="number" step="0.01" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm font-semibold">
-              <p class="text-[11px] text-[#8a8375] mt-1">Defaults to the computed total below — type your own figure to override it.</p>
+              <p class="text-[11px] text-[#8a8375] mt-1">Prints at the top of the document. Defaults to the total below — for Proposals, you can type a different figure here (e.g. a deposit due upon receipt to start work) without changing the totals breakdown.</p>
             </div>
             <div>
               <label class="field-label">Status</label>
               <select id="ndStatus" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
             </div>
+          </div>
+          <div id="ndRelatedProposalRow" class="hidden mt-3">
+            <label class="field-label">Related Proposal (optional)</label>
+            <select id="ndRelatedProposal" class="w-full sm:w-80 border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+            <p class="text-[11px] text-[#8a8375] mt-1">Links this Change Order back to the Proposal it amends.</p>
+          </div>
+          <div id="ndRelatedCOsRow" class="hidden mt-3">
+            <label class="field-label">Related Change Order(s) (optional)</label>
+            <div id="ndRelatedCOsList" class="border border-[var(--line)] rounded px-3 py-2 text-sm space-y-1 sm:w-80"></div>
+            <p class="text-[11px] text-[#8a8375] mt-1">Links this Invoice to the approved Change Order(s) it's billing against.</p>
+          </div>
+          <div id="ndBillingSplitRow" class="hidden mt-3">
+            <label class="field-label">Billing Breakdown (optional)</label>
+            <div class="grid grid-cols-2 gap-2 sm:w-80">
+              <input id="ndBillOriginal" type="number" step="0.01" min="0" placeholder="Original Contract ($)" class="border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <input id="ndBillChangeOrder" type="number" step="0.01" min="0" placeholder="Change Order ($)" class="border border-[var(--line)] rounded px-3 py-2 text-sm">
+            </div>
+            <p id="ndBillSplitHint" class="text-[11px] text-[#8a8375] mt-1">Optionally indicate how much of this invoice bills against the original contract vs. approved change orders.</p>
           </div>
           <select id="ndDocType" class="hidden">
             <option value="PROPOSAL">Proposal</option>
@@ -353,6 +391,7 @@
           </select>
           <p id="ndProjectHint" class="text-xs text-[var(--orange-dark)] mt-3 hidden"></p>
           <p id="ndGeneratedFromNote" class="text-xs bg-[var(--concrete)] border border-[var(--line)] rounded px-2 py-1.5 mt-2 hidden"></p>
+          <p id="ndDuplicatedFromNote" class="text-xs bg-[var(--concrete)] border border-[var(--line)] rounded px-2 py-1.5 mt-2 hidden"></p>
         </div>
 
         <div class="card p-4 sm:p-5">
@@ -431,6 +470,24 @@
         </div>
 
         <div class="card p-4 sm:p-5">
+          <h2 class="font-head text-lg text-[var(--orange-dark)] mb-2">Deductions &amp; Discounts</h2>
+          <p class="text-xs text-[#8a8375] mb-3">Custom items that subtract from the subtotal — discounts, credits, allowances already covered, etc. Each has its own editable description and amount.</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
+                  <th class="p-1">Description</th>
+                  <th class="p-1 w-32">Amount ($)</th>
+                  <th class="p-1 w-8"></th>
+                </tr>
+              </thead>
+              <tbody id="ndDeductionsBody"></tbody>
+            </table>
+          </div>
+          <button id="ndAddDeductionBtn" class="btn-ghost text-xs px-3 py-1.5 rounded mt-2">+ Add Deduction</button>
+        </div>
+
+        <div class="card p-4 sm:p-5">
           <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Notes &amp; Payment Terms</h2>
           <textarea id="ndNotes" rows="3" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="e.g. Deposit due prior to commencement of work. Remaining balance paid through weekly progress payments…"></textarea>
         </div>
@@ -450,9 +507,26 @@
               <div class="ledger-row total"><span>Amount Due</span><span id="ndOutAmountDue">$0.00</span></div>
             </div>
             <div id="ndInvoiceLedgerRows" class="hidden">
-              <div class="ledger-row"><span>Previously Received</span><span id="ndOutPrevReceived">($0.00)</span></div>
+              <div class="ledger-row items-start">
+                <span>Previously Received</span>
+                <span class="text-right">
+                  <span id="ndOutPrevReceived">($0.00)</span><br>
+                  <span id="ndPrevPaidTag" class="text-[10px] text-[#8a8375]">Calculated</span>
+                </span>
+              </div>
+              <div class="pb-2 border-b border-[var(--line)]">
+                <label class="flex items-center gap-1.5 text-xs text-[#6b675f]">
+                  <input type="checkbox" id="ndPrevPaidOverrideToggle"> Override Previously Received
+                </label>
+                <div id="ndPrevPaidOverrideFields" class="hidden mt-1.5 grid grid-cols-2 gap-2">
+                  <input id="ndPrevPaidManual" type="number" step="0.01" placeholder="Manual amount ($)" class="border border-[var(--line)] rounded px-2 py-1.5 text-xs">
+                  <input id="ndPrevPaidReason" placeholder="Reason (optional)" class="border border-[var(--line)] rounded px-2 py-1.5 text-xs">
+                </div>
+                <button id="ndPrevPaidResetBtn" class="hidden text-[10px] text-[var(--orange)] underline mt-1.5">Reset to Calculated</button>
+              </div>
               <div class="ledger-row"><span>Current Payment Due</span><span id="ndOutCurrentDue">$0.00</span></div>
               <div class="ledger-row total"><span>Remaining Balance</span><span id="ndOutRemaining">$0.00</span></div>
+              <button id="ndFillRemainingBtn" class="btn-ghost text-xs px-3 py-1.5 rounded mt-2">Fill Remaining Balance</button>
             </div>
             <div id="ndCoLedgerNote" class="hidden text-xs text-[var(--orange-dark)] mt-2"></div>
             <p class="text-[11px] text-[#8a8375] mt-2">The headline amount above (Amount Due / Current Due / Grand Total) is what actually gets used — edit it in the Project &amp; Document Info card.</p>
@@ -640,6 +714,64 @@
       <div id="versionsModalBody" class="overflow-y-auto p-4 space-y-3"></div>
     </div>
   </div>
+
+  <!-- ===================== PAYMENT MODAL ===================== -->
+  <div id="paymentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.45)">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--line)]">
+        <p class="font-head text-lg text-[var(--orange-dark)]" id="paymentModalTitle">Record Payment</p>
+        <button id="paymentModalClose" class="text-[#8a8375] text-xl leading-none px-2">&times;</button>
+      </div>
+      <div class="overflow-y-auto p-4 space-y-3">
+        <div>
+          <label class="field-label">Applied To</label>
+          <select id="pmAppliedTo" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+            <option value="DEPOSIT">Deposit</option>
+            <option value="INVOICE">Invoice</option>
+            <option value="CHANGE_ORDER">Change Order</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div id="pmDocumentRow">
+          <label class="field-label">Document</label>
+          <select id="pmDocument" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Date</label>
+            <input id="pmDate" type="date" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="field-label">Amount ($)</label>
+            <input id="pmAmount" type="number" step="0.01" min="0" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Method</label>
+            <select id="pmMethod" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+              <option>Check</option><option>ACH</option><option>Cash</option><option>Credit Card</option><option>Wire</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Reference / Check #</label>
+            <input id="pmReference" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Notes</label>
+          <textarea id="pmNotes" rows="2" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm"></textarea>
+        </div>
+        <p id="pmDeleteWrap" class="hidden text-left">
+          <button id="pmDeleteBtn" class="text-xs text-[var(--orange)]">Delete this payment</button>
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 px-4 py-3 border-t border-[var(--line)]">
+        <button id="pmCancelBtn" class="btn-ghost text-xs px-4 py-2 rounded-md">Cancel</button>
+        <button id="pmSaveBtn" class="btn-primary text-xs px-4 py-2 rounded-md">Save Payment</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -666,7 +798,8 @@ function defaultDB(){
     projects:  [],
     documents: [],
     activityLog: [],
-    meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 4 }
+    payments: [],
+    meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 5 }
   };
 }
 
@@ -679,6 +812,7 @@ function loadDB(){
     DB.projects  = DB.projects  || [];
     DB.documents = DB.documents || [];
     DB.activityLog = DB.activityLog || [];
+    DB.payments = DB.payments || [];
     DB.meta = DB.meta || { nextProjectSeq: 1 };
     DB.meta.projectCounters = DB.meta.projectCounters || {};
     DB.meta.docCounters = DB.meta.docCounters || {};
@@ -739,6 +873,10 @@ function statusBadgeHtml(status){
   const c = statusBadgeColor(status);
   return `<span class="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:${c.bg};color:${c.fg}">${escapeHtml(status)}</span>`;
 }
+function paidInFullBadgeHtml(ledger){
+  if(!ledger || ledger.revised <= 0 || ledger.remaining > 0) return '';
+  return '<span class="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:#E4F1E8;color:#2E6B45">PAID IN FULL</span>';
+}
 
 /* ------------------------- Project ledger math ------------------------ */
 function logActivity(projectId, activityType, description, documentId){
@@ -746,17 +884,28 @@ function logActivity(projectId, activityType, description, documentId){
   DB.activityLog.push({ id: uid(), projectId, activityType, description, documentId: documentId || null, createdAt: Date.now() });
 }
 
+function getProjectPayments(projectId){
+  return (DB.payments || []).filter(p => p.projectId === projectId).sort((a,b)=> (a.date||'').localeCompare(b.date||'') || a.createdAt - b.createdAt);
+}
+function getTotalPayments(projectId){
+  return getProjectPayments(projectId).reduce((s,p)=> s + (Number(p.amount)||0), 0);
+}
+const PAYMENT_APPLIED_TO_LABEL = { DEPOSIT:'Deposit', INVOICE:'Invoice', CHANGE_ORDER:'Change Order', OTHER:'Other' };
+
 function getProjectLedger(project){
-  if(!project) return { approvedCO:0, revised:0, billed:0, received:0, remaining:0 };
+  if(!project) return { approvedCO:0, revised:0, billed:0, received:0, remaining:0, original:0, totalInvoiced:0, totalPaid:0, outstandingInvoices:0, unbilled:0 };
   const cos = DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER' && d.status === 'Approved');
   const approvedCO = cos.reduce((s,d) => s + d.financials.grandTotal, 0);
   const original = Number(project.originalContractTotal) || 0;
   const revised = original + approvedCO;
   const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE' && !['Void','Cancelled'].includes(d.status));
-  const billed = invs.reduce((s,d) => s + d.financials.currentDue, 0);
-  const received = billed;
-  const remaining = revised - received;
-  return { approvedCO, revised, billed, received, remaining, original };
+  const totalInvoiced = invs.reduce((s,d) => s + d.financials.currentDue, 0);
+  const totalPaid = getTotalPayments(project.id);
+  const outstandingInvoices = totalInvoiced - totalPaid;
+  const unbilled = revised - totalInvoiced;
+  const remaining = revised - totalPaid;
+  // billed/received kept as aliases of totalInvoiced/totalPaid so existing call sites keep working unchanged.
+  return { approvedCO, revised, original, totalInvoiced, totalPaid, outstandingInvoices, unbilled, remaining, billed: totalInvoiced, received: totalPaid };
 }
 
 /* ------------------- Project IDs & document numbering -------------------
@@ -869,6 +1018,27 @@ function migrateSchema(){
     DB.meta.schemaVersion = 4;
   }
 
+  if((DB.meta.schemaVersion || 0) < 5){
+    // Every existing invoice's math assumed it was paid in full the moment it was issued.
+    // Generate matching Payment records now so that assumption becomes an explicit,
+    // visible record instead of an implicit one — nothing about existing balances changes.
+    DB.payments = DB.payments || [];
+    DB.documents.filter(d => d.docType === 'INVOICE').forEach(inv=>{
+      const alreadyHas = DB.payments.some(p => p.documentId === inv.id);
+      if(alreadyHas) return;
+      const amt = inv.financials && inv.financials.currentDue;
+      if(!amt) return;
+      DB.payments.push({
+        id: uid(), projectId: inv.projectId, documentId: inv.id, appliedTo: 'INVOICE',
+        date: (inv.date && inv.date !== 'UPON_RECEIPT') ? inv.date : todayISO(),
+        amount: amt, method: 'Other', reference: '',
+        notes: 'Migrated automatically — assumed paid in full under the previous accounting model.',
+        createdAt: inv.createdAt || Date.now(), updatedAt: inv.createdAt || Date.now()
+      });
+    });
+    DB.meta.schemaVersion = 5;
+  }
+
   saveDB();
 }
 
@@ -885,11 +1055,16 @@ function buildAdjustmentRows(subtotal, adj){
   if(adj.extraMaterials) rows.push(['Extra Materials', money(adj.extraMaterials)]);
   return rows;
 }
-function buildTotalsRows(f, docType, project, ledger, adj){
-  const rows = buildAdjustmentRows(f.subtotal, adj);
+function buildDeductionRows(deductions){
+  return (deductions || []).filter(d => Number(d.amount)).map(d => [
+    (d.description && d.description.trim()) || 'Deduction', '(' + money(d.amount) + ')'
+  ]);
+}
+function buildTotalsRows(f, docType, project, ledger, adj, deductions){
+  const rows = buildAdjustmentRows(f.subtotal, adj).concat(buildDeductionRows(deductions));
   const highlight = [];
   if(docType === 'PROPOSAL'){
-    rows.push(['Total:', money(f.subtotal + f.totalAdjustments)]);
+    rows.push(['Total:', money(f.grandTotal)]);
     if(f.depositAmount) rows.push(['Deposit:', '(' + money(f.depositAmount) + ')']);
     rows.push(['Amount Due (USD):', money(f.amountDue)]);
     highlight.push('Amount Due (USD):');
@@ -900,8 +1075,9 @@ function buildTotalsRows(f, docType, project, ledger, adj){
     rows.push(['Revised Contract Total:', money(ledger ? ledger.revised : 0)]);
     highlight.push('Revised Contract Total:');
   } else if(docType === 'INVOICE'){
-    rows.push(['Subtotal:', money(f.subtotal + f.totalAdjustments)]);
-    rows.push(['Previously Received:', '(' + money(f.previouslyReceived) + ')']);
+    rows.push(['Subtotal:', money(f.grandTotal)]);
+    const prevLabel = f.previouslyPaidOverrideActive ? 'Previously Received (Manual):' : 'Previously Received:';
+    rows.push([prevLabel, '(' + money(f.previouslyReceived) + ')']);
     rows.push(['Current Payment Due:', money(f.currentDue)]);
     rows.push(['Remaining Balance:', money(f.remainingBalance)]);
     highlight.push('Current Payment Due:', 'Remaining Balance:');
@@ -921,7 +1097,8 @@ function getMetaInfo(docType, docNumber, dateStr, po, dueVal, f){
   if(dueVal === 'UPON_RECEIPT') rows.push([dueLabel, 'Due Upon Receipt']);
   else if(dueVal) rows.push([dueLabel, formatDateLong(dueVal)]);
   const amountLabel = docType === 'INVOICE' ? 'Current Due' : (docType === 'PROPOSAL' ? 'Amount Due' : 'Grand Total');
-  const amountValue = docType === 'INVOICE' ? f.currentDue : (docType === 'PROPOSAL' ? f.amountDue : f.grandTotal);
+  const amountValue = f.topAmount !== undefined ? f.topAmount
+    : (docType === 'INVOICE' ? f.currentDue : (docType === 'PROPOSAL' ? f.amountDue : f.grandTotal));
   rows.push([amountLabel, money(amountValue)]);
   return { rows, amountLabel };
 }
@@ -1168,14 +1345,24 @@ function renderProjectsList(){
 /* ============================ NEW DOCUMENT ============================= */
 let ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
 let ndBillingMode = 'LUMP_SUM';
+let ndDeductions = [];
+let ndPrevPaidOverrideActive = false;
 let ndDocNumberTouched = false;
 let ndHeadlineTouched = false;
 let ndLastSavedDoc = null;
 let ndGeneratedFrom = null;
+let ndDuplicatedFrom = null;
+let ndRelatedChangeOrders = [];
 let ndEditingDoc = null;
 
 function resetFieldOverrides(){
   ndDocNumberTouched = false; ndHeadlineTouched = false; ndGeneratedFrom = null; ndEditingDoc = null;
+  ndRelatedChangeOrders = []; ndDuplicatedFrom = null;
+  ndPrevPaidOverrideActive = false;
+  $('ndPrevPaidOverrideToggle').checked = false;
+  $('ndPrevPaidOverrideFields').classList.add('hidden');
+  $('ndPrevPaidResetBtn').classList.add('hidden');
+  $('ndPrevPaidReason').value = '';
   $('ndDocNumber').disabled = false;
   $('ndEditBanner').classList.add('hidden');
   $('ndRevisionReason').value = '';
@@ -1246,6 +1433,32 @@ $('ndDueUponReceipt').addEventListener('change', ()=>{
   if(checked) $('ndDueDate').value = '';
   renderLivePreview();
 });
+$('ndRelatedProposal').addEventListener('change', ()=>{
+  const sel = $('ndRelatedProposal');
+  if(sel.value){
+    const opt = sel.options[sel.selectedIndex];
+    ndGeneratedFrom = { documentId: sel.value, docNumber: opt.textContent };
+  } else {
+    ndGeneratedFrom = null;
+  }
+  onNdContextChange();
+});
+function updateBillSplitHint(){
+  const orig = Number($('ndBillOriginal').value) || 0;
+  const co = Number($('ndBillChangeOrder').value) || 0;
+  const sum = orig + co;
+  const hint = $('ndBillSplitHint');
+  if(!orig && !co){
+    hint.textContent = 'Optionally indicate how much of this invoice bills against the original contract vs. approved change orders.';
+    hint.style.color = '';
+    return;
+  }
+  const f = computeFinancials();
+  hint.textContent = `Sum: ${money(sum)} of ${money(f.currentDue)} invoiced` + (Math.abs(sum - f.currentDue) > 0.01 ? ' — does not match the invoice amount' : ' ✓');
+  hint.style.color = Math.abs(sum - f.currentDue) > 0.01 ? 'var(--orange)' : '#4C7A5C';
+}
+$('ndBillOriginal').addEventListener('input', updateBillSplitHint);
+$('ndBillChangeOrder').addEventListener('input', updateBillSplitHint);
 
 function onNdContextChange(){
   const project = getSelectedProject();
@@ -1263,14 +1476,58 @@ function onNdContextChange(){
     if(!ndDocNumberTouched) $('ndDocNumber').value = '';
     $('ndProjectDocNumberPreview').textContent = 'Project doc #: —';
   }
+
+  $('ndRelatedProposalRow').classList.toggle('hidden', docType !== 'CHANGE_ORDER');
+  $('ndRelatedCOsRow').classList.toggle('hidden', docType !== 'INVOICE');
+  $('ndBillingSplitRow').classList.toggle('hidden', docType !== 'INVOICE');
+  if(docType === 'CHANGE_ORDER'){
+    const proposals = project ? DB.documents.filter(d => d.projectId === project.id && d.docType === 'PROPOSAL') : [];
+    const sel = $('ndRelatedProposal');
+    sel.innerHTML = '<option value="">None</option>' + proposals.map(p=>`<option value="${p.id}">${escapeHtml(p.docNumber)}</option>`).join('');
+    sel.value = (ndGeneratedFrom && proposals.some(p=>p.id===ndGeneratedFrom.documentId)) ? ndGeneratedFrom.documentId : '';
+  }
+  if(docType === 'INVOICE'){
+    const cos = project ? DB.documents.filter(d => d.projectId === project.id && d.docType === 'CHANGE_ORDER') : [];
+    const list = $('ndRelatedCOsList');
+    if(cos.length === 0){
+      list.innerHTML = '<p class="text-xs text-[#8a8375]">No Change Orders on this project yet.</p>';
+    } else {
+      list.innerHTML = cos.map(c=>{
+        const checked = ndRelatedChangeOrders.some(r=>r.documentId===c.id) ? 'checked' : '';
+        return `<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="ndRelatedCOCheckbox" data-id="${c.id}" data-num="${escapeHtml(c.docNumber)}" ${checked}> ${escapeHtml(c.docNumber)} (${statusBadgeHtml(c.status)})</label>`;
+      }).join('');
+      list.querySelectorAll('.ndRelatedCOCheckbox').forEach(cb=>{
+        cb.addEventListener('change', ()=>{
+          if(cb.checked){ ndRelatedChangeOrders.push({ documentId: cb.dataset.id, docNumber: cb.dataset.num }); }
+          else { ndRelatedChangeOrders = ndRelatedChangeOrders.filter(r=>r.documentId!==cb.dataset.id); }
+          markDirty();
+        });
+      });
+    }
+  }
+
   const genNote = $('ndGeneratedFromNote');
   if(ndGeneratedFrom){
     genNote.classList.remove('hidden');
-    genNote.innerHTML = `Generated from Proposal <strong>${escapeHtml(ndGeneratedFrom.docNumber)}</strong> — <button id="ndClearGeneratedFrom" class="text-[var(--orange)] underline">clear link</button>`;
+    const verb = docType === 'CHANGE_ORDER' ? 'Amends Proposal' : 'Generated from Proposal';
+    genNote.innerHTML = `${verb} <strong>${escapeHtml(ndGeneratedFrom.docNumber)}</strong> — <button id="ndClearGeneratedFrom" class="text-[var(--orange)] underline">clear link</button>`;
     const clearBtn = $('ndClearGeneratedFrom');
-    if(clearBtn) clearBtn.addEventListener('click', ()=>{ ndGeneratedFrom = null; onNdContextChange(); });
+    if(clearBtn) clearBtn.addEventListener('click', ()=>{
+      ndGeneratedFrom = null;
+      if(docType === 'CHANGE_ORDER') $('ndRelatedProposal').value = '';
+      onNdContextChange();
+    });
   } else {
     genNote.classList.add('hidden');
+  }
+  const dupNote = $('ndDuplicatedFromNote');
+  if(ndDuplicatedFrom){
+    dupNote.classList.remove('hidden');
+    dupNote.innerHTML = `⧉ Duplicated from <strong>${escapeHtml(ndDuplicatedFrom.docNumber)}</strong> — this will save as a brand-new document with its own number. <button id="ndClearDuplicatedFrom" class="text-[var(--orange)] underline">clear</button>`;
+    const clearDupBtn = $('ndClearDuplicatedFrom');
+    if(clearDupBtn) clearDupBtn.addEventListener('click', ()=>{ ndDuplicatedFrom = null; onNdContextChange(); });
+  } else {
+    dupNote.classList.add('hidden');
   }
   $('ndPdfBtn').setAttribute('disabled','disabled');
   ndLastSavedDoc = null;
@@ -1343,8 +1600,62 @@ $('ndLineItemsBody').addEventListener('click', (e)=>{
   }
 });
 
+function renderDeductions(){
+  const body = $('ndDeductionsBody');
+  if(ndDeductions.length === 0){
+    body.innerHTML = `<tr><td colspan="3" class="p-2 text-xs text-[#8a8375]">No deductions added.</td></tr>`;
+    return;
+  }
+  body.innerHTML = ndDeductions.map((d,i)=>`<tr class="border-b border-[var(--line)]">
+      <td class="p-1"><input class="ded-desc w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${escapeHtml(d.description)}" placeholder="e.g. Discount"></td>
+      <td class="p-1"><input type="number" step="0.01" class="ded-amount w-full border border-[var(--line)] rounded px-2 py-1 text-sm" data-i="${i}" value="${d.amount}"></td>
+      <td class="p-1 text-center"><button class="ded-remove text-[var(--orange)]" data-i="${i}">✕</button></td>
+    </tr>`).join('');
+}
+$('ndAddDeductionBtn').addEventListener('click', ()=>{ ndDeductions.push({ description:'', amount:0 }); renderDeductions(); recalcLedger(); });
+$('ndDeductionsBody').addEventListener('input', (e)=>{
+  const i = e.target.dataset.i; if(i === undefined) return;
+  if(e.target.classList.contains('ded-desc')) ndDeductions[i].description = e.target.value;
+  if(e.target.classList.contains('ded-amount')) ndDeductions[i].amount = e.target.value;
+  recalcLedger();
+});
+$('ndDeductionsBody').addEventListener('click', (e)=>{
+  if(e.target.classList.contains('ded-remove')){
+    ndDeductions.splice(Number(e.target.dataset.i), 1);
+    renderDeductions(); recalcLedger();
+  }
+});
+
 ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials','ndDeposit','ndLumpAmount']
   .forEach(id => $(id).addEventListener('input', recalcLedger));
+
+$('ndPrevPaidOverrideToggle').addEventListener('change', ()=>{
+  ndPrevPaidOverrideActive = $('ndPrevPaidOverrideToggle').checked;
+  $('ndPrevPaidOverrideFields').classList.toggle('hidden', !ndPrevPaidOverrideActive);
+  $('ndPrevPaidResetBtn').classList.toggle('hidden', !ndPrevPaidOverrideActive);
+  if(ndPrevPaidOverrideActive && !$('ndPrevPaidManual').value){
+    $('ndPrevPaidManual').value = computeFinancials().previouslyPaidCalculated.toFixed(2);
+  }
+  recalcLedger();
+});
+$('ndPrevPaidManual').addEventListener('input', recalcLedger);
+$('ndPrevPaidReason').addEventListener('input', markDirty);
+$('ndPrevPaidResetBtn').addEventListener('click', ()=>{
+  ndPrevPaidOverrideActive = false;
+  $('ndPrevPaidOverrideToggle').checked = false;
+  $('ndPrevPaidOverrideFields').classList.add('hidden');
+  $('ndPrevPaidResetBtn').classList.add('hidden');
+  $('ndPrevPaidReason').value = '';
+  recalcLedger();
+});
+$('ndFillRemainingBtn').addEventListener('click', ()=>{
+  const f = computeFinancials();
+  if(f.remainingBalance === null) return;
+  const filled = f.remainingBalance + f.currentDue; // remaining balance before this invoice's own amount
+  ndHeadlineTouched = true;
+  $('ndHeadlineAmount').value = filled.toFixed(2);
+  recalcLedger();
+});
 
 function computeFinancials(){
   const subtotal = ndBillingMode === 'LUMP_SUM'
@@ -1354,28 +1665,39 @@ function computeFinancials(){
   const pctAmt = subtotal * (adj.taxPercent + adj.overheadPercent + adj.bondingPercent + adj.insurancePercent) / 100;
   const flatAmt = adj.scaffoldingFee + adj.riggingFee + adj.extraLabor + adj.extraMaterials;
   const totalAdjustments = pctAmt + flatAmt;
-  const rawGrandTotal = subtotal + totalAdjustments;
+  const totalDeductions = ndDeductions.reduce((s,d)=> s + (Number(d.amount)||0), 0);
+  const rawGrandTotal = subtotal + totalAdjustments - totalDeductions;
 
   const docType = $('ndDocType').value;
   const project = getSelectedProject();
-  let previouslyReceived = 0, currentDue = rawGrandTotal, remainingBalance = null;
+  let previouslyReceived = 0, previouslyPaidCalculated = 0, currentDue = rawGrandTotal, remainingBalance = null;
   let depositAmount = 0, amountDue = rawGrandTotal, grandTotal = rawGrandTotal;
   const headlineOverride = ndHeadlineTouched ? (Number($('ndHeadlineAmount').value) || 0) : null;
 
   if(docType === 'PROPOSAL'){
     depositAmount = Number($('ndDeposit').value) || 0;
-    const defaultAmountDue = rawGrandTotal - depositAmount;
-    amountDue = headlineOverride !== null ? headlineOverride : defaultAmountDue;
+    amountDue = rawGrandTotal - depositAmount;
   } else if(docType === 'INVOICE' && project){
     const l = getProjectLedger(project);
-    previouslyReceived = l.received;
+    previouslyPaidCalculated = l.totalPaid;
+    const prevPaidOverride = ndPrevPaidOverrideActive ? (Number($('ndPrevPaidManual').value) || 0) : null;
+    previouslyReceived = prevPaidOverride !== null ? prevPaidOverride : previouslyPaidCalculated;
     currentDue = headlineOverride !== null ? headlineOverride : rawGrandTotal;
     remainingBalance = l.revised - previouslyReceived - currentDue;
   } else {
     // Change Order and all other generic document types: headline amount IS the grand total.
     grandTotal = headlineOverride !== null ? headlineOverride : rawGrandTotal;
   }
-  return { subtotal, totalAdjustments, grandTotal, previouslyReceived, currentDue, remainingBalance, depositAmount, amountDue };
+  // topAmount is what prints in the top metadata box. For Proposals it defaults to the
+  // computed Amount Due but can be freely overridden (e.g. to show a deposit due upon
+  // receipt to start work) WITHOUT changing the totals box math below it.
+  const topAmount = docType === 'PROPOSAL'
+    ? (headlineOverride !== null ? headlineOverride : amountDue)
+    : (docType === 'INVOICE' ? currentDue : grandTotal);
+  return {
+    subtotal, totalAdjustments, totalDeductions, grandTotal, previouslyReceived, previouslyPaidCalculated,
+    previouslyPaidOverrideActive: ndPrevPaidOverrideActive, currentDue, remainingBalance, depositAmount, amountDue, topAmount
+  };
 }
 
 function recalcLedger(){
@@ -1392,6 +1714,10 @@ function recalcLedger(){
     $('ndOutPrevReceived').textContent = '(' + money(f.previouslyReceived) + ')';
     $('ndOutCurrentDue').textContent = money(f.currentDue);
     $('ndOutRemaining').textContent = money(f.remainingBalance);
+    $('ndPrevPaidTag').textContent = f.previouslyPaidOverrideActive
+      ? `Manual Override (calculated: ${money(f.previouslyPaidCalculated)})`
+      : 'Calculated';
+    if(!ndPrevPaidOverrideActive) $('ndPrevPaidManual').value = f.previouslyPaidCalculated.toFixed(2);
   }
   $('ndProposalDepositRow').classList.toggle('hidden', !isProposal);
   $('ndProposalLedgerRows').classList.toggle('hidden', !isProposal);
@@ -1401,8 +1727,7 @@ function recalcLedger(){
   }
 
   if(!ndHeadlineTouched){
-    const headlineVal = docType === 'PROPOSAL' ? f.amountDue : (docType === 'CHANGE_ORDER' ? f.grandTotal : f.currentDue);
-    $('ndHeadlineAmount').value = headlineVal.toFixed(2);
+    $('ndHeadlineAmount').value = f.topAmount.toFixed(2);
   }
 
   const coNote = $('ndCoLedgerNote');
@@ -1411,6 +1736,7 @@ function recalcLedger(){
     coNote.textContent = `Saving this Change Order will add ${money(f.grandTotal)} to the project's approved change orders and revised contract total.`;
   } else coNote.classList.add('hidden');
 
+  if(docType === 'INVOICE') updateBillSplitHint();
   renderLivePreview();
   return f;
 }
@@ -1450,11 +1776,16 @@ function renderLivePreview(){
     ? `<div class="flex justify-between items-center mb-3" style="background:var(--orange);color:#fff;font-weight:700;font-size:11px;padding:8px 10px"><span>Lump Sum Amount</span><span>${money(lumpAmount)}</span></div>`
     : `<table class="pv-items mb-3"><thead>${itemsHead}</thead><tbody>${itemsRows}</tbody></table>`;
 
-  const totals = buildTotalsRows(f, docType, project, ledger, adj);
+  const totals = buildTotalsRows(f, docType, project, ledger, adj, ndDeductions);
   const totalsRowsHtml = totals.rows.map(r=>{
     const isHi = totals.highlight.includes(r[0]);
     return `<tr class="${isHi?'pv-highlight':''}"><td class="font-bold" style="${isHi?'':'color:#4a4540'}">${escapeHtml(r[0])}</td><td class="text-right ${isHi?'font-bold':''}">${escapeHtml(r[1])}</td></tr>`;
   }).join('');
+
+  const billOrig = Number($('ndBillOriginal').value) || 0;
+  const billCO = Number($('ndBillChangeOrder').value) || 0;
+  const billSplitHtml = (docType === 'INVOICE' && (billOrig || billCO)) ? `
+    <p class="text-[11px] mb-3" style="color:#6e675d">Billing breakdown — Original Contract: ${money(billOrig)} · Change Order: ${money(billCO)}</p>` : '';
 
   const notesRaw = $('ndNotes').value.trim();
   const notesSectionHtml = notesRaw ? `
@@ -1495,6 +1826,7 @@ function renderLivePreview(){
     <div class="flex justify-end mb-4">
       <table class="pv-totals pv-box"><tbody>${totalsRowsHtml}</tbody></table>
     </div>
+    ${billSplitHtml}
     ${notesSectionHtml}
     ${signatureHtml}
     <div class="text-white text-center text-[11px] py-2 -mx-8 -mb-8 mt-6" style="background:var(--orange)">${escapeHtml(brandLine || 'Site Ledger')}</div>
@@ -1509,6 +1841,9 @@ function resetNewDocForm(){
   $('ndLumpAmount').value = 0;
   ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
   renderLineItems();
+  ndDeductions = [];
+  renderDeductions();
+  $('ndBillOriginal').value = ''; $('ndBillChangeOrder').value = '';
   setBillingMode('LUMP_SUM');
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
@@ -1540,6 +1875,10 @@ $('ndSaveBtn').addEventListener('click', ()=>{
   }
 
   const f = computeFinancials();
+  if(docType === 'INVOICE' && f.remainingBalance !== null && f.remainingBalance < 0){
+    const proceed = confirm(`This invoice's amount (${money(f.currentDue)}) exceeds the remaining contract balance by ${money(Math.abs(f.remainingBalance))}. Save anyway?`);
+    if(!proceed) return;
+  }
   const dateVal = $('ndDate').value || todayISO();
   const now = Date.now();
   const status = $('ndStatus').value;
@@ -1547,10 +1886,20 @@ $('ndSaveBtn').addEventListener('click', ()=>{
     date: dateVal, poReference: $('ndPO').value.trim(), dueDate: getCurrentDueVal(), status,
     billingMode: ndBillingMode, lineItems, scopeOfWork: isScopeEmpty() ? '' : scopeEditor.innerHTML.trim(),
     adjustments: getCurrentAdjustments(),
+    deductions: ndDeductions.filter(d => Number(d.amount) || (d.description && d.description.trim()))
+      .map(d => ({ description: d.description || '', amount: Number(d.amount) || 0 })),
+    relatedChangeOrders: docType === 'INVOICE' ? ndRelatedChangeOrders.slice() : [],
+    billingBreakdown: (docType === 'INVOICE' && (Number($('ndBillOriginal').value) || Number($('ndBillChangeOrder').value)))
+      ? { originalContractBilling: Number($('ndBillOriginal').value) || 0, changeOrderBilling: Number($('ndBillChangeOrder').value) || 0 }
+      : null,
     financials: {
-      subtotal: f.subtotal, totalAdjustments: f.totalAdjustments, grandTotal: f.grandTotal,
-      previouslyReceived: f.previouslyReceived, currentDue: f.currentDue, remainingBalance: f.remainingBalance,
-      depositAmount: f.depositAmount, amountDue: f.amountDue
+      subtotal: f.subtotal, totalAdjustments: f.totalAdjustments, totalDeductions: f.totalDeductions, grandTotal: f.grandTotal,
+      previouslyReceived: f.previouslyReceived, previouslyPaidCalculated: f.previouslyPaidCalculated,
+      previouslyPaidManual: f.previouslyPaidOverrideActive ? (Number($('ndPrevPaidManual').value) || 0) : null,
+      previouslyPaidOverrideActive: f.previouslyPaidOverrideActive,
+      previouslyPaidOverrideReason: f.previouslyPaidOverrideActive ? $('ndPrevPaidReason').value.trim() : '',
+      currentDue: f.currentDue, remainingBalance: f.remainingBalance,
+      depositAmount: f.depositAmount, amountDue: f.amountDue, topAmount: f.topAmount
     },
     notes: $('ndNotes').value.trim()
   };
@@ -1584,7 +1933,7 @@ $('ndSaveBtn').addEventListener('click', ()=>{
     projectNumber = commitProjectDocNumber(project, docType);
     doc = Object.assign({
       id: uid(), projectId: project.id, docType, docNumber, projectNumber,
-      revisionNumber: 0, versions: [], generatedFrom: ndGeneratedFrom || null,
+      revisionNumber: 0, versions: [], generatedFrom: ndGeneratedFrom || null, duplicatedFrom: ndDuplicatedFrom || null,
       createdAt: now, updatedAt: now
     }, newFields);
     DB.documents.push(doc);
@@ -1592,12 +1941,22 @@ $('ndSaveBtn').addEventListener('click', ()=>{
     if(doc.generatedFrom){
       logActivity(project.id, 'DOCUMENT_GENERATED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} generated from ${doc.generatedFrom.docNumber}`, doc.id);
     }
+    if(doc.duplicatedFrom){
+      logActivity(project.id, 'DOCUMENT_DUPLICATED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} duplicated from ${doc.duplicatedFrom.docNumber}`, doc.id);
+    }
   }
 
   project.updatedAt = now;
+  if(doc.docType === 'INVOICE' && doc.financials.previouslyPaidOverrideActive){
+    const calc = money(doc.financials.previouslyPaidCalculated);
+    const man = money(doc.financials.previouslyPaidManual);
+    const reason = doc.financials.previouslyPaidOverrideReason ? ` — reason: "${doc.financials.previouslyPaidOverrideReason}"` : '';
+    logActivity(project.id, 'BALANCE_OVERRIDE', `${doc.docNumber}: Previously Paid manually overridden — calculated ${calc}, manual ${man}${reason}`, doc.id);
+  }
   saveDB();
   ndLastSavedDoc = doc;
   ndGeneratedFrom = null;
+  ndDuplicatedFrom = null;
   $('ndDocNumber').value = doc.docNumber;
   const wasEditing = !!ndEditingDoc;
   ndEditingDoc = null;
@@ -1628,6 +1987,37 @@ function revisionNoteHtml(doc){
   if(!doc.revisionNumber && (!doc.versions || doc.versions.length===0)) return '';
   return `<br><button data-id="${doc.id}" class="viewVersionsBtn text-[10px] text-[var(--steel)] underline">Rev ${doc.revisionNumber||0} · History</button>`;
 }
+function overrideNoteHtml(doc){
+  if(doc.docType !== 'INVOICE' || !doc.financials || !doc.financials.previouslyPaidOverrideActive) return '';
+  return `<br><span class="text-[10px] font-medium" style="color:#946A1E" title="Calculated: ${escapeHtml(money(doc.financials.previouslyPaidCalculated))} — Manual: ${escapeHtml(money(doc.financials.previouslyPaidManual))}">⚠ Manual Override</span>`;
+}
+function duplicateNoteHtml(doc){
+  if(!doc.duplicatedFrom) return '';
+  return `<br><span class="text-[10px] text-[var(--steel)]">⧉ Duplicate of ${escapeHtml(doc.duplicatedFrom.docNumber)}</span>`;
+}
+function relationshipNoteHtml(doc){
+  const parts = [];
+  if(doc.generatedFrom){
+    const verb = doc.docType === 'CHANGE_ORDER' ? 'Amends' : 'From';
+    parts.push(`<span class="text-[10px] text-[var(--orange-dark)]">← ${verb} ${escapeHtml(doc.generatedFrom.docNumber)}</span>`);
+  }
+  if(doc.relatedChangeOrders && doc.relatedChangeOrders.length){
+    parts.push(`<span class="text-[10px] text-[var(--orange-dark)]">⇄ ${doc.relatedChangeOrders.map(c=>escapeHtml(c.docNumber)).join(', ')}</span>`);
+  }
+  // Reverse: any document (Invoice or Change Order) generated from / amending this one
+  const children = DB.documents.filter(d => d.generatedFrom && d.generatedFrom.documentId === doc.id);
+  if(children.length){
+    parts.push(`<span class="text-[10px] text-[var(--orange-dark)]">→ ${children.map(c=>escapeHtml(c.docNumber)).join(', ')}</span>`);
+  }
+  // Reverse: invoices that reference this Change Order
+  if(doc.docType === 'CHANGE_ORDER'){
+    const invoices = DB.documents.filter(d => d.relatedChangeOrders && d.relatedChangeOrders.some(r=>r.documentId===doc.id));
+    if(invoices.length){
+      parts.push(`<span class="text-[10px] text-[var(--orange-dark)]">→ ${invoices.map(i=>escapeHtml(i.docNumber)).join(', ')}</span>`);
+    }
+  }
+  return parts.length ? '<br>' + parts.join(' ') : '';
+}
 function wireStatusSelects(body, refreshFn){
   body.querySelectorAll('select[data-id]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
@@ -1647,6 +2037,20 @@ function wireStatusSelects(body, refreshFn){
 function wireVersionsButtons(body){
   body.querySelectorAll('.viewVersionsBtn').forEach(btn=> btn.addEventListener('click', ()=> openVersionsModal(btn.dataset.id)));
 }
+function recordPaymentButtonHtml(d, cls){
+  const eligible = d.docType === 'INVOICE' || d.docType === 'CHANGE_ORDER' || (d.docType === 'PROPOSAL' && d.financials && d.financials.depositAmount > 0);
+  if(!eligible) return '';
+  const appliedTo = d.docType === 'PROPOSAL' ? 'DEPOSIT' : d.docType;
+  const amount = d.docType === 'PROPOSAL' ? d.financials.depositAmount : d.financials.grandTotal;
+  return `<button data-id="${d.id}" data-project="${d.projectId}" data-applied="${appliedTo}" data-amount="${amount}" class="${cls} text-xs text-[var(--orange-dark)] px-2 py-1">Record Payment</button>`;
+}
+function wireRecordPaymentButtons(body, cls){
+  body.querySelectorAll('.' + cls).forEach(btn=>{
+    btn.addEventListener('click', ()=> openPaymentModal({
+      projectId: btn.dataset.project, appliedTo: btn.dataset.applied, documentId: btn.dataset.id, amount: Number(btn.dataset.amount) || 0
+    }));
+  });
+}
 
 /* ============================ DASHBOARD ============================ */
 function renderDashboard(){
@@ -1665,17 +2069,19 @@ function renderDashboard(){
     statTile('Awaiting Payment', awaitingPayment.length)
   ].join('');
 
-  let totalContract=0, totalCO=0, totalInvoiced=0, totalPaid=0, totalOutstanding=0;
+  let totalContract=0, totalCO=0, totalInvoiced=0, totalPaid=0, totalOutstandingInv=0, totalUnbilled=0, totalRemaining=0;
   projects.forEach(p=>{
     const l = getProjectLedger(p);
-    totalContract += l.original; totalCO += l.approvedCO; totalInvoiced += l.billed; totalPaid += l.received; totalOutstanding += l.remaining;
+    totalContract += l.original; totalCO += l.approvedCO; totalInvoiced += l.totalInvoiced; totalPaid += l.totalPaid;
+    totalOutstandingInv += l.outstandingInvoices; totalUnbilled += l.unbilled; totalRemaining += l.remaining;
   });
   $('dashFinancialStats').innerHTML = [
-    statTile('Total Contract', money(totalContract)),
-    statTile('Approved COs', money(totalCO)),
+    statTile('Current Contract', money(totalContract + totalCO)),
     statTile('Total Invoiced', money(totalInvoiced)),
     statTile('Total Paid', money(totalPaid)),
-    statTile('Outstanding', money(totalOutstanding))
+    statTile('Outstanding Invoices', money(totalOutstandingInv)),
+    statTile('Unbilled Balance', money(totalUnbilled)),
+    statTile('Remaining Contract', money(totalRemaining))
   ].join('');
 
   const recent = [...DB.documents].sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt)).slice(0, 8);
@@ -1719,7 +2125,7 @@ function renderProjectsGrid(){
     return `<button data-id="${p.id}" class="openProjectCardBtn card p-4 text-left hover:shadow-md transition-shadow">
       <div class="flex items-center justify-between gap-2">
         <p class="text-[11px] font-mono text-[var(--orange-dark)] font-semibold">${escapeHtml(p.projectCode)}</p>
-        ${statusBadgeHtml(p.status)}
+        <span class="flex items-center gap-1">${paidInFullBadgeHtml(l)}${statusBadgeHtml(p.status)}</span>
       </div>
       <p class="font-medium text-sm mt-1">${escapeHtml(p.projectName)}</p>
       <p class="text-xs text-[#8a8375]">${escapeHtml(client ? client.companyName : '—')}</p>
@@ -1728,7 +2134,7 @@ function renderProjectsGrid(){
         <div><span class="text-[#8a8375]">Contract</span><br><span class="font-medium">${money(l.revised)}</span></div>
         <div><span class="text-[#8a8375]">Invoiced</span><br><span class="font-medium">${money(l.billed)}</span></div>
         <div><span class="text-[#8a8375]">Paid</span><br><span class="font-medium">${money(l.received)}</span></div>
-        <div><span class="text-[#8a8375]">Outstanding</span><br><span class="font-medium text-[var(--orange-dark)]">${money(l.remaining)}</span></div>
+        <div><span class="text-[#8a8375]">Remaining</span><br><span class="font-medium text-[var(--orange-dark)]">${money(l.remaining)}</span></div>
       </div>
     </button>`;
   }).join('');
@@ -1754,7 +2160,7 @@ function renderProjectDetail(){
   const l = getProjectLedger(project);
 
   $('pdBreadcrumb').textContent = project.projectCode;
-  $('pdProjectCode').textContent = project.projectCode;
+  $('pdProjectCode').innerHTML = `${escapeHtml(project.projectCode)} ${paidInFullBadgeHtml(l)}`;
   $('pdProjectName').textContent = `${project.projectName}${client ? ' — ' + client.companyName : ''}`;
 
   const statusSel = $('pdStatusSelect');
@@ -1778,12 +2184,14 @@ function renderProjectDetail(){
 
   const stat = (label, value)=> `<div class="stat-tile"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></div>`;
   $('pdFinancialStrip').innerHTML = [
-    stat('Original', money(project.originalContractTotal)),
+    stat('Original Contract', money(l.original)),
     stat('Approved COs', money(l.approvedCO)),
-    stat('Revised Contract', money(l.revised)),
-    stat('Invoiced', money(l.billed)),
-    stat('Paid', money(l.received)),
-    stat('Outstanding', money(l.remaining))
+    stat('Current Contract', money(l.revised)),
+    stat('Total Invoiced', money(l.totalInvoiced)),
+    stat('Total Paid', money(l.totalPaid)),
+    stat('Outstanding Invoices', money(l.outstandingInvoices)),
+    stat('Unbilled Balance', money(l.unbilled)),
+    stat('Remaining Contract', money(l.remaining))
   ].join('');
 
   // Overview tab
@@ -1808,6 +2216,7 @@ function renderProjectDetail(){
     </div>`;
 
   renderPdDocuments();
+  renderPdPayments();
   renderPdActivity();
   $('pdNotesText').value = project.notes || '';
 }
@@ -1838,22 +2247,24 @@ function renderPdDocuments(){
   if(docs.length === 0){ body.innerHTML=''; $('pdDocsEmpty').classList.remove('hidden'); return; }
   $('pdDocsEmpty').classList.add('hidden');
   body.innerHTML = docs.map(d=>{
-    const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
     const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="pdConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
       <td class="p-2">${escapeHtml(d.date)}</td>
       <td class="p-2">${statusSelectHtml(d, 'pdStatusSelectRow')}</td>
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
       <td class="p-2 text-right whitespace-nowrap">
         ${convertBtn}
+        ${recordPaymentButtonHtml(d, 'pdRecordPaymentRowBtn')}
         <button data-id="${d.id}" class="pdEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
+        <button data-id="${d.id}" class="pdDupBtn text-[var(--orange-dark)] text-xs px-2 py-1">Duplicate</button>
         <button data-id="${d.id}" class="pdPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
         <button data-id="${d.id}" class="pdDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
       </td>
     </tr>`;
   }).join('');
+  wireRecordPaymentButtons(body, 'pdRecordPaymentRowBtn');
   body.querySelectorAll('.pdPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{ const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc); }));
   body.querySelectorAll('.pdDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
     if(!confirm('Delete this document?')) return;
@@ -1862,6 +2273,7 @@ function renderPdDocuments(){
   }));
   body.querySelectorAll('.pdConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   body.querySelectorAll('.pdEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+  body.querySelectorAll('.pdDupBtn').forEach(btn=> btn.addEventListener('click', ()=> duplicateDocument(btn.dataset.id)));
   wireStatusSelects(body, ()=>{ renderPdDocuments(); renderProjectDetail(); });
   wireVersionsButtons(body);
 }
@@ -1880,6 +2292,36 @@ function renderPdActivity(){
     </div>`;
   }).join('');
 }
+function renderPdPayments(){
+  const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
+  if(!project) return;
+  const payments = getProjectPayments(project.id);
+  const body = $('pdPaymentsBody');
+  if(payments.length === 0){ body.innerHTML = ''; $('pdPaymentsEmpty').classList.remove('hidden'); }
+  else {
+    $('pdPaymentsEmpty').classList.add('hidden');
+    body.innerHTML = payments.map(p=>{
+      const doc = p.documentId ? DB.documents.find(d=>d.id===p.documentId) : null;
+      const appliedLabel = PAYMENT_APPLIED_TO_LABEL[p.appliedTo] + (doc ? ` (${escapeHtml(doc.docNumber)})` : '');
+      return `<tr class="border-b border-[var(--line)]">
+        <td class="p-2">${escapeHtml(p.date)}</td>
+        <td class="p-2">${appliedLabel}</td>
+        <td class="p-2">${escapeHtml(p.method)}</td>
+        <td class="p-2">${escapeHtml(p.reference || '—')}</td>
+        <td class="p-2 text-right">${money(p.amount)}</td>
+        <td class="p-2 text-right"><button data-id="${p.id}" class="pdEditPaymentBtn text-xs text-[var(--orange-dark)] px-2 py-1">Edit</button></td>
+      </tr>`;
+    }).join('');
+    body.querySelectorAll('.pdEditPaymentBtn').forEach(btn=>{
+      btn.addEventListener('click', ()=> openPaymentModal({ projectId: project.id, paymentId: btn.dataset.id }));
+    });
+  }
+  $('pdPaymentsTotal').textContent = money(getTotalPayments(project.id));
+}
+$('pdRecordPaymentBtn').addEventListener('click', ()=>{
+  if(!ndCurrentProjectDetailId) return;
+  openPaymentModal({ projectId: ndCurrentProjectDetailId, appliedTo: 'DEPOSIT' });
+});
 $('pdNotesSaveBtn').addEventListener('click', ()=>{
   const project = DB.projects.find(p=>p.id===ndCurrentProjectDetailId);
   if(!project) return;
@@ -1972,11 +2414,10 @@ function renderAllDocs(){
   if(rows.length === 0){ body.innerHTML=''; $('allDocsEmpty').classList.remove('hidden'); return; }
   $('allDocsEmpty').classList.add('hidden');
   body.innerHTML = rows.map(({d, project, client})=>{
-    const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
     const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="adConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
       <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
+      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
       <td class="p-2 font-mono text-xs">${escapeHtml(project ? project.projectCode : '—')}</td>
       <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
       <td class="p-2">${escapeHtml(project ? project.projectName : '—')}</td>
@@ -1985,7 +2426,9 @@ function renderAllDocs(){
       <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
       <td class="p-2 text-right whitespace-nowrap">
         ${convertBtn}
+        ${recordPaymentButtonHtml(d, 'adRecordPaymentRowBtn')}
         <button data-id="${d.id}" class="adEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
+        <button data-id="${d.id}" class="adDupBtn text-[var(--orange-dark)] text-xs px-2 py-1">Duplicate</button>
         <button data-id="${d.id}" class="adPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">PDF</button>
         <button data-id="${d.id}" class="adDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
       </td>
@@ -2001,6 +2444,8 @@ function renderAllDocs(){
   }));
   body.querySelectorAll('.adConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   body.querySelectorAll('.adEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+  body.querySelectorAll('.adDupBtn').forEach(btn=> btn.addEventListener('click', ()=> duplicateDocument(btn.dataset.id)));
+  wireRecordPaymentButtons(body, 'adRecordPaymentRowBtn');
   wireStatusSelects(body, renderAllDocs);
   wireVersionsButtons(body);
 }
@@ -2033,6 +2478,8 @@ function convertToInvoice(sourceDocId){
   $('ndRigging').value = src.adjustments.riggingFee || 0;
   $('ndExtraLabor').value = src.adjustments.extraLabor || 0;
   $('ndExtraMaterials').value = src.adjustments.extraMaterials || 0;
+  ndDeductions = (src.deductions || []).map(d => Object.assign({}, d));
+  renderDeductions();
   $('ndDate').value = todayISO();
   $('ndPO').value = src.poReference || '';
 
@@ -2073,6 +2520,22 @@ function editDocument(docId){
   $('ndExtraLabor').value = doc.adjustments.extraLabor || 0;
   $('ndExtraMaterials').value = doc.adjustments.extraMaterials || 0;
   $('ndDeposit').value = doc.financials.depositAmount || 0;
+  ndDeductions = (doc.deductions || []).map(d => Object.assign({}, d));
+  renderDeductions();
+  if(doc.docType === 'INVOICE' && doc.financials.previouslyPaidOverrideActive){
+    ndPrevPaidOverrideActive = true;
+    $('ndPrevPaidOverrideToggle').checked = true;
+    $('ndPrevPaidOverrideFields').classList.remove('hidden');
+    $('ndPrevPaidResetBtn').classList.remove('hidden');
+    $('ndPrevPaidManual').value = (doc.financials.previouslyPaidManual || 0).toFixed(2);
+    $('ndPrevPaidReason').value = doc.financials.previouslyPaidOverrideReason || '';
+  } else {
+    ndPrevPaidOverrideActive = false;
+    $('ndPrevPaidOverrideToggle').checked = false;
+    $('ndPrevPaidOverrideFields').classList.add('hidden');
+    $('ndPrevPaidResetBtn').classList.add('hidden');
+    $('ndPrevPaidReason').value = '';
+  }
   $('ndPO').value = doc.poReference || '';
   $('ndDate').value = (doc.date && doc.date !== 'UPON_RECEIPT') ? doc.date : todayISO();
   if(doc.dueDate === 'UPON_RECEIPT'){
@@ -2085,9 +2548,13 @@ function editDocument(docId){
   $('ndDocNumber').value = doc.docNumber;
   $('ndDocNumber').disabled = true;
   ndHeadlineTouched = true;
-  const headlineVal = doc.docType === 'PROPOSAL' ? doc.financials.amountDue : (doc.docType === 'INVOICE' ? doc.financials.currentDue : doc.financials.grandTotal);
+  const headlineVal = doc.financials.topAmount !== undefined ? doc.financials.topAmount
+    : (doc.docType === 'PROPOSAL' ? doc.financials.amountDue : (doc.docType === 'INVOICE' ? doc.financials.currentDue : doc.financials.grandTotal));
   $('ndHeadlineAmount').value = (headlineVal || 0).toFixed(2);
   ndGeneratedFrom = doc.generatedFrom || null;
+  ndRelatedChangeOrders = (doc.relatedChangeOrders || []).map(r => Object.assign({}, r));
+  $('ndBillOriginal').value = doc.billingBreakdown ? doc.billingBreakdown.originalContractBilling : '';
+  $('ndBillChangeOrder').value = doc.billingBreakdown ? doc.billingBreakdown.changeOrderBilling : '';
   ndEditingDoc = doc;
 
   onNdContextChange();
@@ -2100,6 +2567,52 @@ function editDocument(docId){
   setViewMode('split');
 }
 $('ndCancelEditBtn').addEventListener('click', ()=>{ resetNewDocForm(); });
+
+/* Loads a saved document's content into the form as a starting point for a brand-new
+   document — a fresh global/project number, no revision history, no inherited
+   relationship links. Distinct from editDocument(), which revises the same document. */
+function duplicateDocument(docId){
+  const src = DB.documents.find(d=>d.id===docId);
+  if(!src){ alert('Document not found.'); return; }
+  const project = DB.projects.find(p=>p.id===src.projectId);
+  if(!project){ alert('Project not found for this document.'); return; }
+
+  switchView('newdoc');
+  resetFieldOverrides();
+
+  $('ndCompanySelect').value = project.companyId;
+  fillProjectSelect($('ndProjectSelect'), project.companyId, project.id);
+  $('ndProjectSelect').value = project.id;
+  $('ndDocType').value = src.docType;
+  syncDocTypeTabs();
+
+  ndLineItems = src.lineItems.map(li => Object.assign({}, li));
+  renderLineItems();
+  const mode = src.billingMode || 'ITEMIZED';
+  setBillingMode(mode);
+  $('ndLumpAmount').value = mode === 'LUMP_SUM' ? ((src.lineItems[0] && src.lineItems[0].total) || 0) : 0;
+  scopeEditor.innerHTML = src.scopeOfWork || '';
+  $('ndNotes').value = src.notes || '';
+  $('ndTax').value = src.adjustments.taxPercent || 0;
+  $('ndOverhead').value = src.adjustments.overheadPercent || 0;
+  $('ndBonding').value = src.adjustments.bondingPercent || 0;
+  $('ndInsurance').value = src.adjustments.insurancePercent || 0;
+  $('ndScaffold').value = src.adjustments.scaffoldingFee || 0;
+  $('ndRigging').value = src.adjustments.riggingFee || 0;
+  $('ndExtraLabor').value = src.adjustments.extraLabor || 0;
+  $('ndExtraMaterials').value = src.adjustments.extraMaterials || 0;
+  $('ndDeposit').value = src.financials.depositAmount || 0;
+  ndDeductions = (src.deductions || []).map(d => Object.assign({}, d));
+  renderDeductions();
+  $('ndBillOriginal').value = ''; $('ndBillChangeOrder').value = '';
+  $('ndPO').value = src.poReference || '';
+  $('ndDate').value = todayISO();
+  $('ndDueUponReceipt').checked = false; $('ndDueDate').disabled = false; $('ndDueDate').value = '';
+
+  ndDuplicatedFrom = { documentId: src.id, docNumber: src.docNumber };
+  onNdContextChange();
+  setViewMode('split');
+}
 
 /* ---------------------------- Version history modal ---------------------------- */
 function openVersionsModal(docId){
@@ -2168,6 +2681,146 @@ function restoreVersion(docId, revisionNumber){
   alert(`Restored — this is now Rev ${doc.revisionNumber}.`);
 }
 
+/* ---------------------------- Payment modal ---------------------------- */
+let pmEditingId = null;
+let pmProjectId = null;
+
+function populatePmDocumentOptions(){
+  const appliedTo = $('pmAppliedTo').value;
+  const docRow = $('pmDocumentRow');
+  const sel = $('pmDocument');
+  if(appliedTo === 'OTHER'){
+    docRow.classList.add('hidden');
+    sel.innerHTML = '';
+    return;
+  }
+  docRow.classList.remove('hidden');
+  const typeMap = { DEPOSIT: 'PROPOSAL', INVOICE: 'INVOICE', CHANGE_ORDER: 'CHANGE_ORDER' };
+  const wantType = typeMap[appliedTo];
+  let docs = DB.documents.filter(d => d.projectId === pmProjectId && d.docType === wantType);
+  if(appliedTo === 'DEPOSIT') docs = docs.filter(d => (d.financials && d.financials.depositAmount) > 0);
+  const label = appliedTo === 'DEPOSIT' ? 'Which Proposal (deposit)' : (appliedTo === 'INVOICE' ? 'Which Invoice' : 'Which Change Order');
+  $('pmDocumentRow').querySelector('label').textContent = label;
+  sel.innerHTML = docs.length
+    ? docs.map(d=>`<option value="${d.id}">${escapeHtml(d.docNumber)}</option>`).join('')
+    : '<option value="">No eligible documents on this project</option>';
+}
+$('pmAppliedTo').addEventListener('change', populatePmDocumentOptions);
+
+function openPaymentModal(opts){
+  opts = opts || {};
+  pmEditingId = opts.paymentId || null;
+  pmProjectId = opts.projectId;
+  $('paymentModalTitle').textContent = pmEditingId ? 'Edit Payment' : 'Record Payment';
+  $('pmDeleteWrap').classList.toggle('hidden', !pmEditingId);
+
+  if(pmEditingId){
+    const p = DB.payments.find(x=>x.id===pmEditingId);
+    if(!p){ return; }
+    $('pmAppliedTo').value = p.appliedTo;
+    populatePmDocumentOptions();
+    $('pmDocument').value = p.documentId || '';
+    $('pmDate').value = p.date || todayISO();
+    $('pmAmount').value = p.amount || 0;
+    $('pmMethod').value = p.method || 'Other';
+    $('pmReference').value = p.reference || '';
+    $('pmNotes').value = p.notes || '';
+  } else {
+    $('pmAppliedTo').value = opts.appliedTo || 'DEPOSIT';
+    populatePmDocumentOptions();
+    if(opts.documentId) $('pmDocument').value = opts.documentId;
+    $('pmDate').value = todayISO();
+    $('pmAmount').value = opts.amount || 0;
+    $('pmMethod').value = 'Check';
+    $('pmReference').value = '';
+    $('pmNotes').value = '';
+  }
+  $('paymentModal').classList.remove('hidden');
+}
+$('paymentModalClose').addEventListener('click', ()=> $('paymentModal').classList.add('hidden'));
+$('pmCancelBtn').addEventListener('click', ()=> $('paymentModal').classList.add('hidden'));
+$('paymentModal').addEventListener('click', (e)=>{ if(e.target.id === 'paymentModal') $('paymentModal').classList.add('hidden'); });
+
+function recomputeInvoiceStatusFromPayments(doc){
+  if(!doc || doc.docType !== 'INVOICE' || ['Void','Cancelled'].includes(doc.status)) return;
+  const paidOnInvoice = DB.payments.filter(p => p.documentId === doc.id).reduce((s,p)=> s + (Number(p.amount)||0), 0);
+  const billed = doc.financials.currentDue || 0;
+  let newStatus = doc.status;
+  if(billed > 0 && paidOnInvoice >= billed) newStatus = 'Paid';
+  else if(paidOnInvoice > 0) newStatus = 'Partially Paid';
+  else if(doc.status === 'Paid' || doc.status === 'Partially Paid') newStatus = 'Issued';
+  if(newStatus !== doc.status){
+    doc.status = newStatus;
+    doc.updatedAt = Date.now();
+    logActivity(doc.projectId, 'STATUS_CHANGED', `Invoice ${doc.docNumber} status auto-updated to ${newStatus}`, doc.id);
+  }
+}
+$('pmSaveBtn').addEventListener('click', ()=>{
+  const amount = Number($('pmAmount').value) || 0;
+  if(amount <= 0){ alert('Enter a payment amount greater than zero.'); return; }
+  const appliedTo = $('pmAppliedTo').value;
+  const documentId = appliedTo === 'OTHER' ? null : ($('pmDocument').value || null);
+
+  const project = DB.projects.find(p=>p.id===pmProjectId);
+  if(project){
+    const existingAmount = pmEditingId ? ((DB.payments.find(x=>x.id===pmEditingId) || {}).amount || 0) : 0;
+    const otherPayments = getTotalPayments(pmProjectId) - existingAmount;
+    const projectedTotal = otherPayments + amount;
+    const contractValue = getProjectLedger(project).revised;
+    if(projectedTotal > contractValue){
+      const proceed = confirm(`This payment would bring total payments to ${money(projectedTotal)}, which exceeds the current contract value of ${money(contractValue)}. Save anyway?`);
+      if(!proceed) return;
+    }
+  }
+
+  const now = Date.now();
+  const fields = {
+    projectId: pmProjectId, appliedTo, documentId,
+    date: $('pmDate').value || todayISO(), amount,
+    method: $('pmMethod').value, reference: $('pmReference').value.trim(), notes: $('pmNotes').value.trim(),
+    updatedAt: now
+  };
+  const doc = documentId ? DB.documents.find(d=>d.id===documentId) : null;
+  const label = PAYMENT_APPLIED_TO_LABEL[appliedTo] + (doc ? ` (${doc.docNumber})` : '');
+
+  if(pmEditingId){
+    const p = DB.payments.find(x=>x.id===pmEditingId);
+    if(p){
+      Object.assign(p, fields);
+      logActivity(pmProjectId, 'PAYMENT_EDITED', `Payment of ${money(amount)} edited — ${label}`, documentId);
+    }
+  } else {
+    const p = Object.assign({ id: uid(), createdAt: now }, fields);
+    DB.payments.push(p);
+    logActivity(pmProjectId, 'PAYMENT_RECORDED', `Payment of ${money(amount)} recorded — ${label}`, documentId);
+  }
+
+  // Keep the Invoice's status honest: issuing an invoice never means it was paid.
+  if(appliedTo === 'INVOICE' && doc){
+    recomputeInvoiceStatusFromPayments(doc);
+  }
+
+  saveDB();
+  $('paymentModal').classList.add('hidden');
+  renderAllDocs(); renderHistoryTab();
+  if(ndCurrentProjectDetailId === pmProjectId){ renderPdPayments(); renderProjectDetail(); }
+});
+
+$('pmDeleteBtn').addEventListener('click', ()=>{
+  if(!pmEditingId) return;
+  if(!confirm('Delete this payment record? This cannot be undone.')) return;
+  const p = DB.payments.find(x=>x.id===pmEditingId);
+  DB.payments = DB.payments.filter(x=>x.id!==pmEditingId);
+  if(p) logActivity(pmProjectId, 'PAYMENT_DELETED', `Payment of ${money(p.amount)} deleted — ${PAYMENT_APPLIED_TO_LABEL[p.appliedTo]}`, p.documentId);
+  if(p && p.appliedTo === 'INVOICE' && p.documentId){
+    recomputeInvoiceStatusFromPayments(DB.documents.find(d=>d.id===p.documentId));
+  }
+  saveDB();
+  $('paymentModal').classList.add('hidden');
+  renderAllDocs(); renderHistoryTab();
+  if(ndCurrentProjectDetailId === pmProjectId){ renderPdPayments(); renderProjectDetail(); }
+});
+
 /* ============================ PROJECT LEDGERS =========================== */
 $('hsCompanySelect').addEventListener('change', ()=>{
   fillProjectSelect($('hsProjectSelect'), $('hsCompanySelect').value, '');
@@ -2181,14 +2834,17 @@ function renderHistoryTab(){
   if(!project){ ledgerCard.classList.add('hidden'); docsCard.classList.add('hidden'); return; }
   const l = getProjectLedger(project);
   ledgerCard.classList.remove('hidden'); docsCard.classList.remove('hidden');
+  const paidInFullBadge = paidInFullBadgeHtml(l);
   $('hsLedgerBox').innerHTML = `
     <div class="ledger-row"><span>Project ID</span><span class="font-mono">${escapeHtml(project.projectCode || '—')}</span></div>
     <div class="ledger-row"><span>Original Contract Total</span><span>${money(project.originalContractTotal)}</span></div>
     <div class="ledger-row"><span>Approved Change Orders</span><span>${money(l.approvedCO)}</span></div>
-    <div class="ledger-row total"><span>Revised Contract Total</span><span>${money(l.revised)}</span></div>
-    <div class="ledger-row"><span>Total Billed to Date</span><span>${money(l.billed)}</span></div>
-    <div class="ledger-row"><span>Total Received to Date</span><span>${money(l.received)}</span></div>
-    <div class="ledger-row total"><span>Remaining Balance</span><span>${money(l.remaining)}</span></div>
+    <div class="ledger-row total"><span>Current Contract Value</span><span>${money(l.revised)}</span></div>
+    <div class="ledger-row"><span>Total Invoiced</span><span>${money(l.totalInvoiced)}</span></div>
+    <div class="ledger-row"><span>Total Paid</span><span>${money(l.totalPaid)}</span></div>
+    <div class="ledger-row"><span>Outstanding Invoices</span><span>${money(l.outstandingInvoices)}</span></div>
+    <div class="ledger-row"><span>Unbilled Contract Balance</span><span>${money(l.unbilled)}</span></div>
+    <div class="ledger-row total"><span>Remaining Contract Balance</span><span>${money(l.remaining)} ${paidInFullBadge}</span></div>
   `;
   const docs = DB.documents.filter(d=>d.projectId===project.id).sort((a,b)=>a.createdAt-b.createdAt);
   const body = $('hsDocsBody');
@@ -2196,17 +2852,18 @@ function renderHistoryTab(){
   else {
     $('hsNoDocs').classList.add('hidden');
     body.innerHTML = docs.map(d=>{
-      const relatedNote = d.generatedFrom ? `<br><span class="text-[10px] text-[var(--orange-dark)]">← ${escapeHtml(d.generatedFrom.docNumber)}</span>` : '';
-      const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="hsConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
+        const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="hsConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
       return `<tr class="border-b border-[var(--line)]">
         <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}${relatedNote}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${revisionNoteHtml(d)}</td>
+        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
         <td class="p-2">${escapeHtml(d.date)}</td>
         <td class="p-2">${statusSelectHtml(d, 'hsStatusSelect')}</td>
         <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
         <td class="p-2 text-right whitespace-nowrap">
           ${convertBtn}
+          ${recordPaymentButtonHtml(d, 'hsRecordPaymentRowBtn')}
           <button data-id="${d.id}" class="hsEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
+        <button data-id="${d.id}" class="hsDupBtn text-[var(--orange-dark)] text-xs px-2 py-1">Duplicate</button>
           <button data-id="${d.id}" class="hsPdfBtn text-[var(--orange-dark)] text-xs px-2 py-1">Download PDF</button>
           <button data-id="${d.id}" class="hsDelBtn text-[var(--orange)] text-xs px-2 py-1">Delete</button>
         </td>
@@ -2222,6 +2879,8 @@ function renderHistoryTab(){
     }));
     body.querySelectorAll('.hsConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
     body.querySelectorAll('.hsEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
+  body.querySelectorAll('.hsDupBtn').forEach(btn=> btn.addEventListener('click', ()=> duplicateDocument(btn.dataset.id)));
+    wireRecordPaymentButtons(body, 'hsRecordPaymentRowBtn');
     wireStatusSelects(body, renderHistoryTab);
     wireVersionsButtons(body);
   }
@@ -2411,7 +3070,7 @@ function generatePDF(doc){
     y = pdf.lastAutoTable.finalY + 14;
   }
 
-  const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments);
+  const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments, doc.deductions);
   pdf.autoTable({
     startY: y, margin: { left: pageWidth - margin - 240, right: margin }, tableWidth: 240,
     theme: 'plain', styles: { fontSize: 9, cellPadding: 4 },
@@ -2423,7 +3082,15 @@ function generatePDF(doc){
       }
     }
   });
-  y = pdf.lastAutoTable.finalY + 20;
+  y = pdf.lastAutoTable.finalY + 12;
+
+  if(doc.billingBreakdown){
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(...GREY);
+    pdf.text(`Billing breakdown — Original Contract: ${money(doc.billingBreakdown.originalContractBilling)} · Change Order: ${money(doc.billingBreakdown.changeOrderBilling)}`, margin, y, { maxWidth: pageWidth - margin*2 });
+    y += 16;
+  } else {
+    y += 8;
+  }
 
   const notesText = (doc.notes || '').trim();
 
@@ -2482,6 +3149,7 @@ function init(){
   renderCompaniesList();
   renderProjectsList();
   renderLineItems();
+  renderDeductions();
   $('projStatus').innerHTML = PROJECT_STATUS_OPTIONS.map(s=>`<option value="${s}" ${s==='Lead'?'selected':''}>${s}</option>`).join('');
   $('ndDate').value = todayISO();
   syncDocTypeTabs();
