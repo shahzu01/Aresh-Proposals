@@ -74,11 +74,13 @@
   .rte-btn{ min-width:38px; min-height:38px; padding:6px 10px; font-size:.78rem; border:1px solid var(--line); border-radius:6px; background:#fff; color:#4a4540; line-height:1; }
   .rte-btn:active{ background:var(--concrete); }
   .rte-btn.active{ background:var(--orange-dark); color:#fff; border-color:var(--orange-dark); }
-  #ndScopeEditor{ outline:none; line-height:1.5; }
+  #ndScopeEditor{ outline:none; line-height:1.6; font-size:12px; color:#26241f; }
   #ndScopeEditor:empty:before{ content: attr(data-placeholder); color:#9a948a; }
-  #ndScopeEditor ul{ list-style:disc; padding-left:1.4em; margin:4px 0; }
-  #ndScopeEditor ol{ list-style:decimal; padding-left:1.4em; margin:4px 0; }
+  #ndScopeEditor div, #ndScopeEditor p{ margin:0 0 6px; }
+  #ndScopeEditor ul{ list-style:disc; padding-left:1.4em; margin:4px 0 8px; }
+  #ndScopeEditor ol{ list-style:decimal; padding-left:1.4em; margin:4px 0 8px; }
   #ndScopeEditor blockquote{ margin:0 0 0 24px; border:none; padding:0; }
+  .nd-scope-render div, .nd-scope-render p{ margin:0 0 6px; }
   #livePreview .nd-scope-render ul{ list-style:disc; padding-left:1.2em; margin:4px 0; }
   #livePreview .nd-scope-render ol{ list-style:decimal; padding-left:1.2em; margin:4px 0; }
   #livePreview .nd-scope-render blockquote{ margin:0 0 0 20px; border:none; padding:0; }
@@ -92,12 +94,43 @@
   #livePreview .pv-items td{ padding:6px 8px; border-bottom:1px solid var(--line); font-size:11px; }
   #livePreview .pv-totals td{ padding:5px 10px; font-size:11px; }
   #livePreview .pv-highlight{ background:var(--orange); color:#fff; font-weight:700; }
+
+  /* ===================== MOBILE (iPhone) OPTIMIZATION ===================== */
+  .mobile-tab-btn{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:10px; color:#8a8375; padding:7px 0 6px; background:transparent; min-height:56px; }
+  .mobile-tab-btn .tab-icon{ font-size:19px; line-height:1; }
+  .mobile-tab-btn.active{ color:var(--orange-dark) !important; background:transparent !important; font-weight:700; }
+  #ndMobileActionBar{ display:none; }
+
+  @media (max-width: 767px){
+    .viewmode-btn[data-mode="split"]{ display:none; }
+    #ndMobileActionBar{
+      display:flex; position:fixed; left:0; right:0; bottom:56px; z-index:35;
+      background:#fff; border-top:1px solid var(--line); padding:8px 12px;
+      padding-bottom:calc(8px + env(safe-area-inset-bottom)); gap:8px;
+    }
+    #ndFormPane, #ndPreviewPane{ padding-bottom:76px !important; }
+    #view-newdoc .rte-row{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
+    #view-newdoc .rte-row .rte-btn{ flex-shrink:0; }
+    .pd-tab, .doctype-tab{ padding:.6rem .5rem; font-size:.82rem; }
+    .rte-btn{ min-height:40px; }
+    #ndSaveBtn, #ndPdfBtn{ display:none; }
+
+    /* Responsive tables: stack rows into cards instead of horizontal-scroll tables */
+    table.responsive-table thead{ display:none; }
+    table.responsive-table, table.responsive-table tbody, table.responsive-table tr, table.responsive-table td{ display:block; width:100%; }
+    table.responsive-table{ min-width:0 !important; }
+    table.responsive-table tr{ border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; }
+    table.responsive-table td{ padding:3px 0 !important; border:none !important; text-align:left !important; }
+    table.responsive-table td:empty{ display:none; }
+    table.responsive-table td[data-label]:before{ content: attr(data-label); display:block; font-size:9px; text-transform:uppercase; letter-spacing:.03em; color:#8a8375; font-weight:700; margin-bottom:2px; }
+    table.responsive-table td[data-label="Actions"]{ margin-top:4px; }
+  }
 </style>
 </head>
-<body class="h-screen overflow-hidden flex">
+<body class="h-screen overflow-hidden flex flex-col md:flex-row">
 
-<!-- ============================== SIDEBAR ============================== -->
-<aside class="w-56 shrink-0 h-screen flex flex-col" style="background:var(--navy)">
+<!-- ============================== SIDEBAR (desktop) ============================== -->
+<aside class="hidden md:flex w-56 shrink-0 h-screen flex-col" style="background:var(--navy)">
   <div class="px-4 py-4 border-b border-white/10">
     <p class="font-head text-2xl text-white leading-none" id="hdrCompanyName">Site Ledger</p>
     <p class="text-[10px] tracking-wide text-white/40 mt-1" id="hdrCompanyMeta">CONSTRUCTION DOCS</p>
@@ -129,7 +162,7 @@
 </aside>
 
 <!-- ============================== MAIN ============================== -->
-<main class="flex-1 h-screen overflow-hidden flex flex-col">
+<main class="flex-1 overflow-hidden flex flex-col" style="min-height:0">
 
   <!-- ===================== VIEW: DASHBOARD ===================== -->
   <section id="view-dashboard" class="view-panel hidden flex-1 flex-col overflow-hidden">
@@ -153,7 +186,7 @@
           <h2 class="font-head text-lg text-[var(--orange-dark)]">Recently Modified Documents</h2>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm min-w-[600px]">
+          <table class="w-full text-sm min-w-[600px] responsive-table">
             <thead>
               <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                 <th class="p-2">Type</th><th class="p-2">Doc #</th><th class="p-2">Project</th><th class="p-2">Status</th><th class="p-2 text-right">Amount</th>
@@ -235,7 +268,7 @@
         </div>
         <div class="card p-4 sm:p-5">
           <div class="overflow-x-auto">
-            <table class="w-full text-sm min-w-[640px]">
+            <table class="w-full text-sm min-w-[640px] responsive-table">
               <thead>
                 <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                   <th class="p-2">Type</th><th class="p-2">Doc #</th><th class="p-2">Date</th><th class="p-2">Status</th><th class="p-2 text-right">Grand Total</th><th class="p-2"></th>
@@ -253,7 +286,7 @@
         </div>
         <div class="card p-4 sm:p-5">
           <div class="overflow-x-auto">
-            <table class="w-full text-sm min-w-[600px]">
+            <table class="w-full text-sm min-w-[600px] responsive-table">
               <thead>
                 <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                   <th class="p-2">Date</th><th class="p-2">Applied To</th><th class="p-2">Method</th><th class="p-2">Reference</th><th class="p-2 text-right">Amount</th><th class="p-2"></th>
@@ -321,6 +354,11 @@
       <span class="text-xs font-medium text-[var(--orange-dark)]" id="ndEditBannerLabel"></span>
       <input id="ndRevisionReason" class="flex-1 min-w-[220px] border border-[var(--line)] rounded px-2 py-1.5 text-xs" placeholder="What changed in this revision? (optional)">
       <button id="ndCancelEditBtn" class="btn-ghost text-xs px-3 py-1.5 rounded-md">Cancel Edit</button>
+    </div>
+
+    <div id="ndMobileActionBar">
+      <button id="ndMobilePdfBtn" class="btn-ghost text-sm py-2.5 rounded-md" style="flex:1" disabled>PDF</button>
+      <button id="ndMobileSaveBtn" class="btn-primary text-sm py-2.5 rounded-md font-medium" style="flex:2">Save</button>
     </div>
 
     <div class="flex-1 flex overflow-hidden" id="ndWorkspace">
@@ -399,26 +437,28 @@
         <div class="card p-4 sm:p-5">
           <h2 class="font-head text-lg text-[var(--orange-dark)] mb-2">Scope of Work / Description</h2>
           <p class="text-xs text-[#8a8375] mb-3">Free-form narrative describing the work. Prints above the items table, separate from it.</p>
-          <div class="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-[var(--concrete)] rounded-md border border-[var(--line)]">
-            <button type="button" data-cmd="bold" class="rte-btn" title="Bold"><b>B</b></button>
-            <button type="button" data-cmd="italic" class="rte-btn" title="Italic"><i>I</i></button>
-            <button type="button" data-cmd="underline" class="rte-btn" title="Underline"><u>U</u></button>
-            <span class="w-px my-1 bg-[var(--line)]"></span>
-            <button type="button" data-cmd="insertUnorderedList" class="rte-btn" title="Bullet list">• List</button>
-            <button type="button" data-cmd="insertOrderedList" class="rte-btn" title="Numbered list">1. List</button>
-            <span class="w-px my-1 bg-[var(--line)]"></span>
-            <button type="button" data-cmd="outdent" class="rte-btn" title="Decrease indent">⇤ Indent</button>
-            <button type="button" data-cmd="indent" class="rte-btn" title="Increase indent">⇥ Indent</button>
-            <span class="w-px my-1 bg-[var(--line)]"></span>
-            <select id="ndScopeFontSize" class="rte-btn" title="Font size">
-              <option value="9">Small</option>
-              <option value="11" selected>Normal</option>
-              <option value="14">Large</option>
-              <option value="18">X-Large</option>
-            </select>
-            <button type="button" data-cmd="removeFormat" class="rte-btn" title="Clear formatting">Clear</button>
+          <div class="rounded-md border border-[var(--line)] bg-[var(--concrete)] p-1.5 mb-2 space-y-1.5">
+            <div class="flex flex-wrap gap-1.5 rte-row">
+              <select id="ndScopeStyle" class="rte-btn font-medium" title="Text style" style="min-width:118px">
+                <option value="normal" selected>Normal text</option>
+                <option value="heading">Section Heading</option>
+                <option value="subheading">Subheading</option>
+                <option value="small">Small note</option>
+              </select>
+              <button type="button" data-cmd="bold" class="rte-btn" title="Bold"><b>B</b></button>
+              <button type="button" data-cmd="italic" class="rte-btn" title="Italic"><i>I</i></button>
+              <button type="button" data-cmd="underline" class="rte-btn" title="Underline"><u>U</u></button>
+              <button type="button" data-cmd="removeFormat" class="rte-btn" title="Clear formatting">Clear</button>
+            </div>
+            <div class="flex flex-wrap gap-1.5 rte-row">
+              <button type="button" id="ndInsertSectionBtn" class="rte-btn font-medium" title="Start a new numbered section" style="background:var(--orange-dark);color:#fff;border-color:var(--orange-dark)">+ New Section</button>
+              <button type="button" data-cmd="insertUnorderedList" class="rte-btn" title="Bullet list">• List</button>
+              <button type="button" data-cmd="insertOrderedList" class="rte-btn" title="Numbered list">1. List</button>
+              <button type="button" data-cmd="outdent" class="rte-btn" title="Decrease indent">⇤</button>
+              <button type="button" data-cmd="indent" class="rte-btn" title="Increase indent">⇥</button>
+            </div>
           </div>
-          <div id="ndScopeEditor" contenteditable="true" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" style="min-height:140px" data-placeholder="Describe the scope of work — numbered sections, bullet points, notes, etc."></div>
+          <div id="ndScopeEditor" contenteditable="true" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" style="min-height:140px" data-placeholder="Describe the scope of work — tap + New Section to start each numbered item, or just start typing."></div>
         </div>
 
         <div class="card p-4 sm:p-5">
@@ -571,7 +611,7 @@
     <div class="flex-1 overflow-y-auto p-4 sm:p-6">
       <div class="card p-4 sm:p-5">
         <div class="overflow-x-auto">
-          <table class="w-full text-sm min-w-[760px]">
+          <table class="w-full text-sm min-w-[760px] responsive-table">
             <thead>
               <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                 <th class="p-2 ad-sort cursor-pointer select-none" data-key="docType">Type</th>
@@ -620,7 +660,7 @@
       <div id="hsDocsCard" class="card p-4 sm:p-5 hidden">
         <h2 class="font-head text-lg text-[var(--orange-dark)] mb-3">Documents</h2>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm min-w-[520px]">
+          <table class="w-full text-sm min-w-[520px] responsive-table">
             <thead>
               <tr class="text-left text-xs uppercase tracking-wide text-[#8a8375] border-b border-[var(--line)]">
                 <th class="p-2">Type</th>
@@ -775,6 +815,25 @@
     </div>
   </div>
 </main>
+
+<!-- ============================== MOBILE BOTTOM TAB BAR ============================== -->
+<nav id="mobileTabBar" class="md:hidden shrink-0 flex bg-white border-t border-[var(--line)]" style="padding-bottom:env(safe-area-inset-bottom)">
+  <button data-nav="dashboard" class="nav-btn mobile-tab-btn">
+    <span class="tab-icon">⌂</span><span>Home</span>
+  </button>
+  <button data-nav="projects" class="nav-btn mobile-tab-btn">
+    <span class="tab-icon">▦</span><span>Projects</span>
+  </button>
+  <button data-nav="newdoc" class="nav-btn mobile-tab-btn">
+    <span class="tab-icon" style="background:var(--orange-dark);color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;margin:-6px auto 0">+</span><span>New</span>
+  </button>
+  <button data-nav="alldocs" class="nav-btn mobile-tab-btn">
+    <span class="tab-icon">▤</span><span>Docs</span>
+  </button>
+  <button data-nav="manage" class="nav-btn mobile-tab-btn">
+    <span class="tab-icon">⚙</span><span>More</span>
+  </button>
+</nav>
 
 <script>
 /* =====================================================================
@@ -1206,6 +1265,23 @@ function setViewMode(mode){
   else if(mode === 'preview'){ formPane.style.display='none'; previewPane.style.display=''; previewPane.style.width='100%'; }
   else { formPane.style.display=''; previewPane.style.display=''; formPane.style.width='50%'; previewPane.style.width='50%'; }
 }
+function isMobileViewport(){ return window.matchMedia('(max-width: 767px)').matches; }
+window.addEventListener('resize', ()=>{
+  if(isMobileViewport() && document.querySelector('.viewmode-btn[data-mode="split"]').classList.contains('active')){
+    setViewMode('form');
+  }
+});
+
+/* Mobile sticky action bar mirrors the desktop Save/PDF buttons so both stay in sync
+   without duplicating any save/PDF logic. */
+function syncMobileActionBar(){
+  $('ndMobilePdfBtn').disabled = $('ndPdfBtn').disabled;
+  $('ndMobileSaveBtn').textContent = $('ndSaveBtn').textContent;
+}
+new MutationObserver(syncMobileActionBar).observe($('ndPdfBtn'), { attributes:true, attributeFilter:['disabled'] });
+new MutationObserver(syncMobileActionBar).observe($('ndSaveBtn'), { childList:true, characterData:true, subtree:true });
+$('ndMobilePdfBtn').addEventListener('click', ()=> $('ndPdfBtn').click());
+$('ndMobileSaveBtn').addEventListener('click', ()=> $('ndSaveBtn').click());
 
 function markDirty(){ $('ndStatusBadge').textContent = 'Unsaved changes'; $('ndStatusBadge').style.color = '#A8404E'; }
 function markSaved(){ $('ndStatusBadge').textContent = 'Saved'; $('ndStatusBadge').style.color = '#4C7A5C'; }
@@ -1405,11 +1481,20 @@ $('ndDate').addEventListener('change', onNdContextChange);
 /* ---- Scope of Work rich text editor ---- */
 const scopeEditor = $('ndScopeEditor');
 function isScopeEmpty(){ return scopeEditor.textContent.replace(/\u00a0/g,' ').trim().length === 0; }
-function applyFontSize(px){
+const SCOPE_STYLE_PRESETS = {
+  normal:     { fontSize:'12px', fontWeight:'400', color:'' },
+  heading:    { fontSize:'15px', fontWeight:'700', color:'' },
+  subheading: { fontSize:'13px', fontWeight:'700', color:'' },
+  small:      { fontSize:'10px', fontWeight:'400', color:'#8a8375' }
+};
+function applyTextStyle(styleName){
+  const preset = SCOPE_STYLE_PRESETS[styleName] || SCOPE_STYLE_PRESETS.normal;
   document.execCommand('fontSize', false, '7');
   scopeEditor.querySelectorAll('font[size="7"]').forEach(el=>{
     el.removeAttribute('size');
-    el.style.fontSize = px + 'px';
+    el.style.fontSize = preset.fontSize;
+    el.style.fontWeight = preset.fontWeight;
+    el.style.color = preset.color;
   });
 }
 function updateRteActiveStates(){
@@ -1425,9 +1510,25 @@ document.querySelectorAll('.rte-btn[data-cmd]').forEach(btn=>{
     renderLivePreview();
   });
 });
-$('ndScopeFontSize').addEventListener('change', ()=>{
+$('ndScopeStyle').addEventListener('change', ()=>{
   scopeEditor.focus();
-  applyFontSize(Number($('ndScopeFontSize').value));
+  applyTextStyle($('ndScopeStyle').value);
+  renderLivePreview();
+});
+$('ndInsertSectionBtn').addEventListener('click', ()=>{
+  scopeEditor.focus();
+  document.execCommand('insertHTML', false,
+    '<div><br></div><div class="__nd_new_section__" style="font-weight:700;font-size:13px"><br></div><div><br></div>');
+  const marker = scopeEditor.querySelector('.__nd_new_section__');
+  if(marker){
+    marker.removeAttribute('class');
+    const range = document.createRange();
+    range.selectNodeContents(marker);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
   renderLivePreview();
 });
 scopeEditor.addEventListener('input', renderLivePreview);
@@ -1855,7 +1956,7 @@ $('ndResetBtn').addEventListener('click', resetNewDocForm);
 function resetNewDocForm(){
   $('ndPO').value = ''; $('ndDueDate').value = ''; $('ndDate').value = todayISO();
   $('ndDueUponReceipt').checked = false; $('ndDueDate').disabled = false;
-  scopeEditor.innerHTML = ''; $('ndScopeFontSize').value = '11'; $('ndNotes').value = ''; $('ndDeposit').value = 0;
+  scopeEditor.innerHTML = ''; $('ndScopeStyle').value = 'normal'; $('ndNotes').value = ''; $('ndDeposit').value = 0;
   $('ndLumpAmount').value = 0;
   ndLineItems = [ { description:'', qty:1, unit:'LS', unitPrice:0 } ];
   renderLineItems();
@@ -2110,11 +2211,11 @@ function renderDashboard(){
   $('dashRecentDocsBody').innerHTML = recent.length ? recent.map(d=>{
     const project = DB.projects.find(p=>p.id===d.projectId);
     return `<tr class="border-b border-[var(--line)]">
-      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}</td>
-      <td class="p-2">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
-      <td class="p-2">${statusBadgeHtml(d.status)}</td>
-      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
+      <td class="p-2" data-label="Type">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium" data-label="Doc #">${escapeHtml(d.docNumber)}</td>
+      <td class="p-2" data-label="Project">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
+      <td class="p-2" data-label="Status">${statusBadgeHtml(d.status)}</td>
+      <td class="p-2 text-right" data-label="Amount">${money(d.financials.grandTotal)}</td>
     </tr>`;
   }).join('') : '<tr><td class="p-2 text-[#8a8375]" colspan="5">No documents yet.</td></tr>';
   $('dashRecentDocsBody').querySelectorAll('.openProjectLinkBtn').forEach(btn=> btn.addEventListener('click', ()=> openProjectDetail(btn.dataset.id)));
@@ -2324,12 +2425,12 @@ function renderPdDocuments(){
   body.innerHTML = docs.map(d=>{
     const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="pdConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
-      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
-      <td class="p-2">${escapeHtml(d.date)}</td>
-      <td class="p-2">${statusSelectHtml(d, 'pdStatusSelectRow')}</td>
-      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
-      <td class="p-2 text-right whitespace-nowrap">
+      <td class="p-2" data-label="Type">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium" data-label="Doc #">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
+      <td class="p-2" data-label="Date">${escapeHtml(d.date)}</td>
+      <td class="p-2" data-label="Status">${statusSelectHtml(d, 'pdStatusSelectRow')}</td>
+      <td class="p-2 text-right" data-label="Grand Total">${money(d.financials.grandTotal)}</td>
+      <td class="p-2 text-right whitespace-nowrap" data-label="Actions">
         ${convertBtn}
         ${recordPaymentButtonHtml(d, 'pdRecordPaymentRowBtn')}
         <button data-id="${d.id}" class="pdEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
@@ -2379,12 +2480,12 @@ function renderPdPayments(){
       const doc = p.documentId ? DB.documents.find(d=>d.id===p.documentId) : null;
       const appliedLabel = PAYMENT_APPLIED_TO_LABEL[p.appliedTo] + (doc ? ` (${escapeHtml(doc.docNumber)})` : '');
       return `<tr class="border-b border-[var(--line)]">
-        <td class="p-2">${escapeHtml(p.date)}</td>
-        <td class="p-2">${appliedLabel}</td>
-        <td class="p-2">${escapeHtml(p.method)}</td>
-        <td class="p-2">${escapeHtml(p.reference || '—')}</td>
-        <td class="p-2 text-right">${money(p.amount)}</td>
-        <td class="p-2 text-right"><button data-id="${p.id}" class="pdEditPaymentBtn text-xs text-[var(--orange-dark)] px-2 py-1">Edit</button></td>
+        <td class="p-2" data-label="Date">${escapeHtml(p.date)}</td>
+        <td class="p-2" data-label="Applied To">${appliedLabel}</td>
+        <td class="p-2" data-label="Method">${escapeHtml(p.method)}</td>
+        <td class="p-2" data-label="Reference">${escapeHtml(p.reference || '—')}</td>
+        <td class="p-2 text-right" data-label="Amount">${money(p.amount)}</td>
+        <td class="p-2 text-right" data-label="Actions"><button data-id="${p.id}" class="pdEditPaymentBtn text-xs text-[var(--orange-dark)] px-2 py-1">Edit</button></td>
       </tr>`;
     }).join('');
     body.querySelectorAll('.pdEditPaymentBtn').forEach(btn=>{
@@ -2491,15 +2592,15 @@ function renderAllDocs(){
   body.innerHTML = rows.map(({d, project, client})=>{
     const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="adConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
     return `<tr class="border-b border-[var(--line)]">
-      <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-      <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
-      <td class="p-2 font-mono text-xs">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline text-[var(--orange-dark)]">${escapeHtml(project.projectCode)}</button>` : '—'}</td>
-      <td class="p-2">${escapeHtml(client ? client.companyName : '—')}</td>
-      <td class="p-2">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
-      <td class="p-2">${escapeHtml(d.date)}</td>
-      <td class="p-2">${statusSelectHtml(d, 'adStatusSelect')}</td>
-      <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
-      <td class="p-2 text-right whitespace-nowrap">
+      <td class="p-2" data-label="Type">${DOC_TYPE_LABEL[d.docType]}</td>
+      <td class="p-2 font-medium" data-label="Doc #">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
+      <td class="p-2 font-mono text-xs" data-label="Project ID">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline text-[var(--orange-dark)]">${escapeHtml(project.projectCode)}</button>` : '—'}</td>
+      <td class="p-2" data-label="Client">${escapeHtml(client ? client.companyName : '—')}</td>
+      <td class="p-2" data-label="Project">${project ? `<button data-id="${project.id}" class="openProjectLinkBtn underline">${escapeHtml(project.projectName)}</button>` : '—'}</td>
+      <td class="p-2" data-label="Date">${escapeHtml(d.date)}</td>
+      <td class="p-2" data-label="Status">${statusSelectHtml(d, 'adStatusSelect')}</td>
+      <td class="p-2 text-right" data-label="Grand Total">${money(d.financials.grandTotal)}</td>
+      <td class="p-2 text-right whitespace-nowrap" data-label="Actions">
         ${convertBtn}
         ${recordPaymentButtonHtml(d, 'adRecordPaymentRowBtn')}
         <button data-id="${d.id}" class="adEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
@@ -2933,12 +3034,12 @@ function renderHistoryTab(){
     body.innerHTML = docs.map(d=>{
         const convertBtn = d.docType === 'PROPOSAL' ? `<button data-id="${d.id}" class="hsConvertBtn text-[var(--orange-dark)] text-xs px-2 py-1">Convert to Invoice</button>` : '';
       return `<tr class="border-b border-[var(--line)]">
-        <td class="p-2">${DOC_TYPE_LABEL[d.docType]}</td>
-        <td class="p-2 font-medium">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
-        <td class="p-2">${escapeHtml(d.date)}</td>
-        <td class="p-2">${statusSelectHtml(d, 'hsStatusSelect')}</td>
-        <td class="p-2 text-right">${money(d.financials.grandTotal)}</td>
-        <td class="p-2 text-right whitespace-nowrap">
+        <td class="p-2" data-label="Type">${DOC_TYPE_LABEL[d.docType]}</td>
+        <td class="p-2 font-medium" data-label="Doc #">${escapeHtml(d.docNumber)}<br><span class="text-[10px] text-[#8a8375]">${escapeHtml(d.projectNumber||'')}</span>${relationshipNoteHtml(d)}${overrideNoteHtml(d)}${duplicateNoteHtml(d)}${revisionNoteHtml(d)}</td>
+        <td class="p-2" data-label="Date">${escapeHtml(d.date)}</td>
+        <td class="p-2" data-label="Status">${statusSelectHtml(d, 'hsStatusSelect')}</td>
+        <td class="p-2 text-right" data-label="Grand Total">${money(d.financials.grandTotal)}</td>
+        <td class="p-2 text-right whitespace-nowrap" data-label="Actions">
           ${convertBtn}
           ${recordPaymentButtonHtml(d, 'hsRecordPaymentRowBtn')}
           <button data-id="${d.id}" class="hsEditBtn text-[var(--orange-dark)] text-xs px-2 py-1">Edit</button>
@@ -2982,16 +3083,23 @@ function parseScopeBlocks(html){
     const pl = parseFloat((el.style && el.style.paddingLeft) || '0') || 0;
     return Math.round(Math.max(ml, pl) / 40);
   }
+  function hasBoldStyle(el){ return !!(el.style && (el.style.fontWeight === '700' || el.style.fontWeight === 'bold')); }
+  function hasItalicStyle(el){ return !!(el.style && el.style.fontStyle === 'italic'); }
+  function styledTextLen(el, checkFn){
+    let len = 0;
+    if(el.querySelectorAll) el.querySelectorAll('*').forEach(node=>{ if(checkFn(node)) len += node.textContent.length; });
+    return len;
+  }
   function blockInfo(el, indent){
     const text = el.textContent.replace(/\u00a0/g,' ').trim();
     if(!text) return null;
     const boldEls = el.querySelectorAll ? el.querySelectorAll('b,strong') : [];
     const italicEls = el.querySelectorAll ? el.querySelectorAll('i,em') : [];
-    const boldLen = Array.from(boldEls).reduce((s,e)=>s+e.textContent.length,0);
-    const italicLen = Array.from(italicEls).reduce((s,e)=>s+e.textContent.length,0);
+    const boldLen = Array.from(boldEls).reduce((s,e)=>s+e.textContent.length,0) + styledTextLen(el, hasBoldStyle);
+    const italicLen = Array.from(italicEls).reduce((s,e)=>s+e.textContent.length,0) + styledTextLen(el, hasItalicStyle);
     const tag = el.tagName ? el.tagName.toLowerCase() : '';
-    const isBold = tag === 'b' || tag === 'strong' || boldLen >= text.length * 0.8;
-    const isItalic = tag === 'i' || tag === 'em' || italicLen >= text.length * 0.8;
+    const isBold = tag === 'b' || tag === 'strong' || hasBoldStyle(el) || boldLen >= text.length * 0.8;
+    const isItalic = tag === 'i' || tag === 'em' || hasItalicStyle(el) || italicLen >= text.length * 0.8;
     let sizePx = pxFromStyle(el);
     if(!sizePx){
       const sized = el.querySelector && el.querySelector('font[style*="font-size"],span[style*="font-size"]');
@@ -3234,6 +3342,8 @@ function init(){
   syncDocTypeTabs();
   onNdContextChange();
   markSaved();
+  syncMobileActionBar();
+  if(isMobileViewport()) setViewMode('form');
   if(location.hash && location.hash !== '#'){
     routeFromHash();
   } else {
