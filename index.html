@@ -63,12 +63,16 @@
   .stat-tile .stat-label{ font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; color:#8a8375; }
   .stat-tile .stat-value{ font-size:1.05rem; font-weight:700; color:var(--orange-dark); margin-top:.15rem; }
   .nav-btn-like{ cursor:pointer; }
+  .home-link{ width:34px; height:34px; min-width:34px; border-radius:8px; background:var(--concrete); color:var(--orange-dark); font-size:17px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); flex-shrink:0; }
+  .home-link:hover{ background:var(--line); }
 
   .view-panel{ display:flex; }
   .view-panel.hidden{ display:none; }
   ::-webkit-scrollbar{ height:6px; width:6px; }
   ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
   .hidden{ display:none !important; }
+  #desktopSidebar{ display:none; }
+  @media (min-width: 768px){ #desktopSidebar{ display:flex; } }
 
   /* Rich text editor for Scope of Work */
   .rte-btn{ min-width:38px; min-height:38px; padding:6px 10px; font-size:.78rem; border:1px solid var(--line); border-radius:6px; background:#fff; color:#4a4540; line-height:1; }
@@ -130,7 +134,7 @@
 <body class="h-screen overflow-hidden flex flex-col md:flex-row">
 
 <!-- ============================== SIDEBAR (desktop) ============================== -->
-<aside class="hidden md:flex w-56 shrink-0 h-screen flex-col" style="background:var(--navy)">
+<aside id="desktopSidebar" class="w-56 shrink-0 h-screen flex-col" style="background:var(--navy)">
   <div class="px-4 py-4 border-b border-white/10">
     <p class="font-head text-2xl text-white leading-none" id="hdrCompanyName">Site Ledger</p>
     <p class="text-[10px] tracking-wide text-white/40 mt-1" id="hdrCompanyMeta">CONSTRUCTION DOCS</p>
@@ -212,7 +216,10 @@
   <!-- ===================== VIEW: PROJECTS ===================== -->
   <section id="view-projects" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-      <p class="font-head text-xl">Projects</p>
+      <div class="flex items-center gap-3">
+        <button data-nav="dashboard" class="nav-btn-like home-link" title="Back to Dashboard">⌂</button>
+        <p class="font-head text-xl">Projects</p>
+      </div>
       <div class="flex items-center gap-2 flex-wrap">
         <input id="projSearchBox" class="border border-[var(--line)] rounded-md px-3 py-1.5 text-sm w-56" placeholder="Search projects…">
         <select id="projArchiveFilter" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-sm">
@@ -235,6 +242,7 @@
   <section id="view-projectDetail" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
       <p class="text-xs text-[#8a8375] mb-1">
+        <button data-nav="dashboard" class="nav-btn-like underline">Dashboard</button> &nbsp;›&nbsp;
         <button data-nav="projects" class="nav-btn-like underline">Projects</button> &nbsp;›&nbsp; <span id="pdBreadcrumb">—</span>
       </p>
       <div class="flex flex-wrap items-center justify-between gap-3">
@@ -319,6 +327,7 @@
   <section id="view-newdoc" class="view-panel flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-4 flex-wrap">
+        <button data-nav="dashboard" class="nav-btn-like home-link" title="Back to Dashboard">⌂</button>
         <div>
           <p class="font-head text-xl leading-none" id="ndHeading">New Document</p>
           <p class="text-xs text-[#8a8375] mt-0.5" id="ndStatusBadge">Unsaved</p>
@@ -596,7 +605,10 @@
   <!-- ===================== VIEW: ALL DOCUMENTS ===================== -->
   <section id="view-alldocs" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
-      <p class="font-head text-xl mb-2">All Documents</p>
+      <div class="flex items-center gap-3 mb-2">
+        <button data-nav="dashboard" class="nav-btn-like home-link" title="Back to Dashboard">⌂</button>
+        <p class="font-head text-xl">All Documents</p>
+      </div>
       <input id="adSearchBox" class="w-full border border-[var(--line)] rounded-md px-3 py-2 text-sm" placeholder="Search project ID, doc #, company, project, address, type, notes…">
       <div class="flex flex-wrap gap-2 mt-2">
         <select id="adFilterProject" class="border border-[var(--line)] rounded-md px-2 py-1.5 text-xs"><option value="">All Projects</option></select>
@@ -636,7 +648,10 @@
   <!-- ===================== VIEW: PROJECT LEDGERS ===================== -->
   <section id="view-ledgers" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
-      <p class="font-head text-xl">Project Ledgers</p>
+      <div class="flex items-center gap-3">
+        <button data-nav="dashboard" class="nav-btn-like home-link" title="Back to Dashboard">⌂</button>
+        <p class="font-head text-xl">Project Ledgers</p>
+      </div>
     </div>
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
       <div class="card p-4 sm:p-5">
@@ -682,7 +697,10 @@
   <!-- ===================== VIEW: MANAGE ===================== -->
   <section id="view-manage" class="view-panel hidden flex-1 flex-col overflow-hidden">
     <div class="bg-white border-b border-[var(--line)] px-4 sm:px-6 py-3">
-      <p class="font-head text-xl">Companies &amp; Projects</p>
+      <div class="flex items-center gap-3">
+        <button data-nav="dashboard" class="nav-btn-like home-link" title="Back to Dashboard">⌂</button>
+        <p class="font-head text-xl">Companies &amp; Projects</p>
+      </div>
     </div>
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
