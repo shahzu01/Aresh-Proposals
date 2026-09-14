@@ -18,6 +18,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
+<!-- Firebase (Backend-as-a-Service: real hosted database + login, no server of our own needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
 <style>
   :root{
     --navy:#20242B;
@@ -160,8 +165,10 @@
       <button data-nav="manage" class="nav-btn w-full text-left px-3 py-2 rounded-md">Companies &amp; Projects</button>
     </div>
   </nav>
-  <div class="px-3 py-3 border-t border-white/10">
+  <div class="px-3 py-3 border-t border-white/10 space-y-1">
+    <p id="sidebarAccountEmail" class="px-2 text-[10px] text-white/40 truncate"></p>
     <button data-nav="manage" class="nav-btn w-full text-left px-3 py-2 rounded-md">⚙ Settings</button>
+    <button id="signOutBtn" class="nav-btn w-full text-left px-3 py-2 rounded-md">⏻ Sign Out</button>
   </div>
 </aside>
 
@@ -764,6 +771,31 @@
     </div>
   </section>
 
+  <!-- ===================== AUTH SCREEN ===================== -->
+  <div id="authScreen" class="fixed inset-0 z-[100] flex items-center justify-center p-4" style="background:var(--concrete)">
+    <div class="card p-6 w-full max-w-sm">
+      <p class="font-head text-2xl text-[var(--orange-dark)] mb-1">Site Ledger</p>
+      <p class="text-sm text-[#8a8375] mb-4">Sign in to access your projects from any device.</p>
+      <div class="space-y-3">
+        <div>
+          <label class="field-label">Email</label>
+          <input id="authEmail" type="email" autocomplete="username" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="you@company.com">
+        </div>
+        <div>
+          <label class="field-label">Password</label>
+          <input id="authPassword" type="password" autocomplete="current-password" class="w-full border border-[var(--line)] rounded px-3 py-2 text-sm" placeholder="At least 6 characters">
+        </div>
+      </div>
+      <p id="authError" class="text-xs text-[var(--orange)] mt-3 hidden"></p>
+      <p id="authStatus" class="text-xs text-[#8a8375] mt-3 hidden">Working…</p>
+      <div class="flex gap-2 mt-4">
+        <button id="authSignInBtn" class="btn-primary flex-1 text-sm py-2.5 rounded-md">Sign In</button>
+        <button id="authSignUpBtn" class="btn-ghost flex-1 text-sm py-2.5 rounded-md">Create Account</button>
+      </div>
+      <button id="authForgotBtn" class="text-xs text-[var(--steel)] underline mt-3">Forgot password?</button>
+    </div>
+  </div>
+
   <!-- ===================== VERSION HISTORY MODAL ===================== -->
   <div id="versionsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.45)">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
@@ -881,27 +913,170 @@ function defaultDB(){
     meta: { nextProjectSeq: 1, projectCounters: {}, docCounters: {}, schemaVersion: 5 }
   };
 }
+function normalizeDB(){
+  DB = DB || defaultDB();
+  DB.myCompany = DB.myCompany || defaultDB().myCompany;
+  DB.companies = DB.companies || [];
+  DB.projects  = DB.projects  || [];
+  DB.documents = DB.documents || [];
+  DB.activityLog = DB.activityLog || [];
+  DB.payments = DB.payments || [];
+  DB.meta = DB.meta || { nextProjectSeq: 1 };
+  DB.meta.projectCounters = DB.meta.projectCounters || {};
+  DB.meta.docCounters = DB.meta.docCounters || {};
+}
 
-function loadDB(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    DB = raw ? JSON.parse(raw) : defaultDB();
-    DB.myCompany = DB.myCompany || defaultDB().myCompany;
-    DB.companies = DB.companies || [];
-    DB.projects  = DB.projects  || [];
-    DB.documents = DB.documents || [];
-    DB.activityLog = DB.activityLog || [];
-    DB.payments = DB.payments || [];
-    DB.meta = DB.meta || { nextProjectSeq: 1 };
-    DB.meta.projectCounters = DB.meta.projectCounters || {};
-    DB.meta.docCounters = DB.meta.docCounters || {};
-  }catch(e){
-    console.error('Failed to load local data, starting fresh.', e);
+/* ============================ CLOUD SYNC (Firebase) ============================
+   Fill in your own project's config below (Firebase console → Project settings →
+   General → "Your apps" → SDK setup and configuration). Everything else here
+   works as-is once that's filled in — no other code changes needed. */
+const firebaseConfig = {
+  apiKey: "AIzaSyCBgz246GXMvIgEGbnDbXEJ4PSiRB-mhQQ",
+  authDomain: "aresh-proposal.firebaseapp.com",
+  projectId: "aresh-proposal",
+  storageBucket: "aresh-proposal.firebasestorage.app",
+  messagingSenderId: "920827940499",
+  appId: "1:920827940499:web:0ace9f429b327983068766"
+};
+let auth = null;
+let firestore = null;
+let dbDocRef = null;
+let hasBootedUI = false;
+let saveDebounceTimer = null;
+
+function saveDB(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }catch(e){ /* storage full or unavailable — non-fatal, cloud is the source of truth */ }
+  if(!dbDocRef) return;
+  clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(()=>{
+    dbDocRef.set({ db: JSON.stringify(DB), updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+      .catch(e => console.error('Cloud save failed:', e));
+  }, 400);
+}
+
+function showAuthError(msg){
+  const el = $('authError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function setAuthBusy(busy, label){
+  $('authStatus').classList.toggle('hidden', !busy);
+  if(label) $('authStatus').textContent = label;
+  $('authSignInBtn').disabled = busy;
+  $('authSignUpBtn').disabled = busy;
+}
+
+function startFirestoreSync(user){
+  dbDocRef = firestore.collection('users').doc(user.uid).collection('data').doc('main');
+  $('sidebarAccountEmail').textContent = user.email || '';
+  dbDocRef.onSnapshot(snap => {
+    if(snap.metadata.hasPendingWrites) return; // ignore the local echo of our own writes
+    if(!snap.exists){
+      handleFirstLoginNoCloudData();
+      return;
+    }
+    try{ DB = JSON.parse(snap.data().db); }catch(e){ DB = defaultDB(); }
+    normalizeDB();
+    migrateSchema();
+    if(!hasBootedUI){ hasBootedUI = true; bootFirstTime(); }
+    else { renderAllSelects(); renderCurrentView(); }
+  }, err => console.error('Cloud sync error:', err));
+}
+
+function handleFirstLoginNoCloudData(){
+  if(hasBootedUI) return;
+  hasBootedUI = true;
+  let raw = null;
+  try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){}
+  if(raw){
+    const migrate = confirm('We found proposal/invoice data already saved in this browser. Upload it to your new account now? Choose Cancel to start this account fresh instead.');
+    try{ DB = migrate ? JSON.parse(raw) : defaultDB(); }catch(e){ DB = defaultDB(); }
+  } else {
     DB = defaultDB();
   }
+  normalizeDB();
   migrateSchema();
+  saveDB();
+  bootFirstTime();
 }
-function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+
+/* Re-renders whichever view is currently on screen, without navigating away —
+   used when a change arrives from another device while you're mid-task here. */
+function renderCurrentView(){
+  renderHeader();
+  const activeSection = document.querySelector('.view-panel:not(.hidden)');
+  if(!activeSection) return;
+  const id = activeSection.id.replace('view-', '');
+  if(id === 'dashboard') renderDashboard();
+  else if(id === 'projects') renderProjectsGrid();
+  else if(id === 'alldocs') renderAllDocs();
+  else if(id === 'ledgers') renderHistoryTab();
+  else if(id === 'manage'){ renderCompaniesList(); renderProjectsList(); }
+  else if(id === 'projectDetail') renderProjectDetail();
+  // 'newdoc' is intentionally left alone — re-rendering mid-edit would disrupt whatever's being typed.
+}
+
+// Everything that touches the `firebase` global lives in this try block. If the CDN
+// fails to load, or the config below is still the "YOUR_..." placeholder, this fails
+// gracefully with a clear message instead of silently breaking the rest of the app
+// (all the document/project/PDF logic defined elsewhere in this file is unaffected
+// either way, since none of it depends on Firebase having succeeded).
+try{
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  firestore = firebase.firestore();
+  try{ firestore.enablePersistence({ synchronizeTabs: true }); }catch(e){ /* multiple tabs or unsupported browser — non-fatal */ }
+
+  $('authSignInBtn').addEventListener('click', async ()=>{
+    $('authError').classList.add('hidden');
+    const email = $('authEmail').value.trim(), password = $('authPassword').value;
+    if(!email || !password){ showAuthError('Enter your email and password.'); return; }
+    setAuthBusy(true, 'Signing in…');
+    try{ await auth.signInWithEmailAndPassword(email, password); }
+    catch(e){ showAuthError(e.message); }
+    finally{ setAuthBusy(false); }
+  });
+  $('authSignUpBtn').addEventListener('click', async ()=>{
+    $('authError').classList.add('hidden');
+    const email = $('authEmail').value.trim(), password = $('authPassword').value;
+    if(!email || !password){ showAuthError('Enter an email and a password (6+ characters) to create an account.'); return; }
+    setAuthBusy(true, 'Creating account…');
+    try{ await auth.createUserWithEmailAndPassword(email, password); }
+    catch(e){ showAuthError(e.message); }
+    finally{ setAuthBusy(false); }
+  });
+  $('authForgotBtn').addEventListener('click', async ()=>{
+    $('authError').classList.add('hidden');
+    const email = $('authEmail').value.trim();
+    if(!email){ showAuthError('Enter your email above first, then tap "Forgot password?" again.'); return; }
+    try{
+      await auth.sendPasswordResetEmail(email);
+      setAuthBusy(true, 'Password reset email sent — check your inbox.');
+    }catch(e){ showAuthError(e.message); }
+  });
+  $('signOutBtn').addEventListener('click', ()=>{
+    if(!confirm('Sign out of Site Ledger on this device?')) return;
+    auth.signOut();
+  });
+
+  auth.onAuthStateChanged(user => {
+    if(user){
+      $('authScreen').classList.add('hidden');
+      startFirestoreSync(user);
+    } else {
+      hasBootedUI = false;
+      dbDocRef = null;
+      DB = null;
+      $('authScreen').classList.remove('hidden');
+      $('authEmail').value = ''; $('authPassword').value = ''; $('authError').classList.add('hidden');
+    }
+  });
+}catch(e){
+  console.error('Firebase failed to initialize:', e);
+  showAuthError('Could not connect to the cloud service. Check your internet connection — or, if you just set this up, make sure the Firebase configuration in the code has been filled in with your own project\'s values.');
+  $('authSignInBtn').disabled = true;
+  $('authSignUpBtn').disabled = true;
+}
 
 /* ------------------------------ Helpers ------------------------------ */
 function uid(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id-' + Date.now() + '-' + Math.random().toString(16).slice(2)); }
@@ -3349,8 +3524,7 @@ function renderAllSelects(){
   fillProjectSelect($('hsProjectSelect'), $('hsCompanySelect').value);
 }
 
-function init(){
-  loadDB();
+function bootFirstTime(){
   renderHeader();
   loadMyCompanyForm();
   renderAllSelects();
@@ -3380,8 +3554,6 @@ function init(){
     console.error('Mobile UI polish failed (non-fatal):', e);
   }
 }
-
-init();
 </script>
 </body>
 </html>
