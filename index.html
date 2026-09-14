@@ -1265,7 +1265,7 @@ function setViewMode(mode){
   else if(mode === 'preview'){ formPane.style.display='none'; previewPane.style.display=''; previewPane.style.width='100%'; }
   else { formPane.style.display=''; previewPane.style.display=''; formPane.style.width='50%'; previewPane.style.width='50%'; }
 }
-function isMobileViewport(){ return window.matchMedia('(max-width: 767px)').matches; }
+function isMobileViewport(){ return window.innerWidth <= 767; }
 window.addEventListener('resize', ()=>{
   if(isMobileViewport() && document.querySelector('.viewmode-btn[data-mode="split"]').classList.contains('active')){
     setViewMode('form');
@@ -1278,8 +1278,10 @@ function syncMobileActionBar(){
   $('ndMobilePdfBtn').disabled = $('ndPdfBtn').disabled;
   $('ndMobileSaveBtn').textContent = $('ndSaveBtn').textContent;
 }
-new MutationObserver(syncMobileActionBar).observe($('ndPdfBtn'), { attributes:true, attributeFilter:['disabled'] });
-new MutationObserver(syncMobileActionBar).observe($('ndSaveBtn'), { childList:true, characterData:true, subtree:true });
+try{
+  new MutationObserver(syncMobileActionBar).observe($('ndPdfBtn'), { attributes:true, attributeFilter:['disabled'] });
+  new MutationObserver(syncMobileActionBar).observe($('ndSaveBtn'), { childList:true, characterData:true, subtree:true });
+}catch(e){ console.error('MutationObserver setup failed (non-fatal):', e); }
 $('ndMobilePdfBtn').addEventListener('click', ()=> $('ndPdfBtn').click());
 $('ndMobileSaveBtn').addEventListener('click', ()=> $('ndSaveBtn').click());
 
@@ -2198,6 +2200,7 @@ function renderDashboard(){
     totalContract += l.original; totalCO += l.approvedCO; totalInvoiced += l.totalInvoiced; totalPaid += l.totalPaid;
     totalOutstandingInv += l.outstandingInvoices; totalUnbilled += l.unbilled; totalRemaining += l.remaining;
   });
+  const statTile = (label, value)=> `<div class="stat-tile"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${value}</div></div>`;
   $('dashFinancialStats').innerHTML = [
     statTile('Current Contract', money(totalContract + totalCO)),
     statTile('Total Invoiced', money(totalInvoiced)),
@@ -3342,12 +3345,21 @@ function init(){
   syncDocTypeTabs();
   onNdContextChange();
   markSaved();
-  syncMobileActionBar();
-  if(isMobileViewport()) setViewMode('form');
+
+  // Core navigation always runs, even if the mobile polish below throws in some
+  // restrictive browser/webview context — losing the dashboard is worse than losing
+  // a mobile nicety.
   if(location.hash && location.hash !== '#'){
     routeFromHash();
   } else {
     switchView('dashboard');
+  }
+
+  try{
+    syncMobileActionBar();
+    if(isMobileViewport()) setViewMode('form');
+  }catch(e){
+    console.error('Mobile UI polish failed (non-fatal):', e);
   }
 }
 
