@@ -604,7 +604,7 @@
             <span>Live Preview · <span id="pvDocTypeLabel">PROPOSAL</span></span>
             <span>Exact print layout</span>
           </p>
-          <div id="livePreview" class="bg-white shadow-md border border-[var(--line)] p-8"></div>
+          <div id="livePreview" class="bg-white shadow-md border border-[var(--line)] p-8" style="position:relative"></div>
         </div>
       </div>
     </div>
@@ -1852,12 +1852,14 @@ function updateMarkActiveButton(){
   }
 }
 $('ndStatus').addEventListener('change', updateMarkActiveButton);
+$('ndStatus').addEventListener('change', renderLivePreview);
 $('ndMarkActiveBtn').addEventListener('click', ()=>{
   const docType = $('ndDocType').value;
   const nextStatus = DRAFT_EXIT_STATUS[docType];
   if(!nextStatus) return;
   $('ndStatus').value = nextStatus;
   updateMarkActiveButton();
+  renderLivePreview();
   markDirty();
   $('ndSaveBtn').click();
 });
@@ -2215,7 +2217,18 @@ function renderLivePreview(){
   const contactLine = [DB.myCompany.phone, DB.myCompany.email].filter(Boolean).join('   •   ');
 
   const nameParts = splitCompanySuffix(DB.myCompany.name || 'Your Company');
-  $('livePreview').innerHTML = `
+  const isDraftStatus = $('ndStatus').value === 'Draft';
+  const watermarkHtml = `
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.06;pointer-events:none;z-index:0;overflow:hidden">
+      <img src="${ARESH_A_ICON_B64}" style="width:260px" alt="">
+    </div>
+    ${isDraftStatus ? `
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.14;pointer-events:none;z-index:0;overflow:hidden">
+      <span style="font-family:Arial,sans-serif;font-weight:800;font-size:90px;color:var(--orange);transform:rotate(-35deg);white-space:nowrap">DRAFT</span>
+    </div>` : ''}
+  `;
+  $('livePreview').innerHTML = watermarkHtml + `
+    <div style="position:relative;z-index:1">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:24px">
       <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto">
         <div style="width:58px;height:58px;border-radius:50%;border:2px solid var(--orange);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden">
@@ -2249,6 +2262,7 @@ function renderLivePreview(){
     ${notesSectionHtml}
     ${signatureHtml}
     <div class="text-white text-center text-[11px] py-2 -mx-8 -mb-8 mt-6" style="background:var(--orange)">${escapeHtml(brandLine || 'Site Ledger')}</div>
+    </div>
   `;
 }
 
@@ -2267,7 +2281,7 @@ function resetNewDocForm(){
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
   markSaved();
 }
 
@@ -2962,7 +2976,7 @@ function convertToInvoice(sourceDocId){
   resetFieldOverrides();
   ndGeneratedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
   setViewMode('split');
 }
 
@@ -3039,6 +3053,7 @@ function editDocument(docId){
 
   $('ndStatus').value = doc.status || getStatusOptions(doc.docType)[0];
   updateMarkActiveButton();
+  renderLivePreview();
   $('ndEditBanner').classList.remove('hidden');
   $('ndEditBannerLabel').textContent = `Editing ${doc.docNumber} — currently Rev ${doc.revisionNumber || 0}. Saving creates Rev ${(doc.revisionNumber||0) + 1}.`;
   $('ndRevisionReason').value = '';
@@ -3090,7 +3105,7 @@ function duplicateDocument(docId){
 
   ndDuplicatedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
   setViewMode('split');
 }
 
