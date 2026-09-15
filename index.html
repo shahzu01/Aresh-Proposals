@@ -953,7 +953,9 @@ function saveDB(){
   if(!dbDocRef) return;
   clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(()=>{
-    dbDocRef.set({ db: JSON.stringify(DB), updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+    const payload = JSON.stringify(DB);
+    lastSyncedRawDb = payload;
+    dbDocRef.set({ db: payload, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
       .catch(e => console.error('Cloud save failed:', e));
   }, 400);
 }
@@ -970,6 +972,7 @@ function setAuthBusy(busy, label){
   $('authSignUpBtn').disabled = busy;
 }
 
+let lastSyncedRawDb = null;
 function startFirestoreSync(user){
   dbDocRef = firestore.collection('users').doc(user.uid).collection('data').doc('main');
   $('sidebarAccountEmail').textContent = user.email || '';
@@ -979,7 +982,14 @@ function startFirestoreSync(user){
       handleFirstLoginNoCloudData();
       return;
     }
-    try{ DB = JSON.parse(snap.data().db); }catch(e){ DB = defaultDB(); }
+    const rawDb = snap.data().db;
+    // If this snapshot's data is byte-for-byte identical to the last one we already
+    // processed, there's nothing to do — re-rendering (or worse, re-saving) here is
+    // exactly what caused a past infinite sync loop, so this check stays as a permanent
+    // safety net even though the original root cause (migrateSchema) is now fixed.
+    if(hasBootedUI && rawDb === lastSyncedRawDb) return;
+    lastSyncedRawDb = rawDb;
+    try{ DB = JSON.parse(rawDb); }catch(e){ DB = defaultDB(); }
     normalizeDB();
     migrateSchema();
     if(!hasBootedUI){ hasBootedUI = true; bootFirstTime(); }
@@ -1029,7 +1039,8 @@ try{
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   firestore = firebase.firestore();
-  try{ firestore.enablePersistence({ synchronizeTabs: true }); }catch(e){ /* multiple tabs or unsupported browser — non-fatal */ }
+  // Offline persistence intentionally not enabled — it used a deprecated API path
+  // (enableMultiTabIndexedDbPersistence) and isn't essential; the app works fine online-only.
 
   $('authSignInBtn').addEventListener('click', async ()=>{
     $('authError').classList.add('hidden');
@@ -1292,6 +1303,7 @@ function buildFilename(doc, project, client){
    to any records created before this numbering system existed. Never re-runs
    once schemaVersion is current, and never deletes or overwrites existing data. */
 function migrateSchema(){
+  const versionBefore = (DB.meta && DB.meta.schemaVersion) || 0;
   DB.meta = DB.meta || {};
   DB.meta.projectCounters = DB.meta.projectCounters || {};
   DB.meta.docCounters = DB.meta.docCounters || {};
@@ -1373,7 +1385,7 @@ function migrateSchema(){
     DB.meta.schemaVersion = 5;
   }
 
-  saveDB();
+  if(DB.meta.schemaVersion !== versionBefore) saveDB();
 }
 
 /* Shared row-builders used by BOTH the live preview and the PDF, so they can never drift apart */
