@@ -3440,6 +3440,41 @@ function parseScopeBlocks(html){
 }
 
 /* ============================ PDF GENERATION ============================ */
+/* Small running header drawn at the top of every page after the first, so a loose page
+   from a multi-page document can still be identified and put back in order. Page 1 keeps
+   its full letterhead as-is and never calls this. */
+function drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesExp){
+  const y = 24;
+  const iconH = 14, iconW = iconH * (350/300);
+  pdf.addImage(ARESH_A_ICON_B64, 'PNG', margin, y - iconH + 3, iconW, iconH);
+  const leftX = margin + iconW + 8;
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(8); pdf.setTextColor(38,36,31);
+  const companyLabel = (DB.myCompany.name || 'Your Company').toUpperCase();
+  pdf.text(companyLabel, leftX, y);
+  const companyWidth = pdf.getTextWidth(companyLabel);
+  pdf.setFont('helvetica','normal'); pdf.setTextColor(120,115,108);
+  pdf.text(`  ·  ${doc.docNumber}  ·  ${client ? client.companyName : ''}`, leftX + companyWidth, y);
+  pdf.text(`Page ${pdf.internal.getNumberOfPages()} of ${totalPagesExp}`, pageWidth - margin, y, { align:'right' });
+  pdf.setDrawColor(228,225,220);
+  pdf.setLineWidth(0.75);
+  pdf.line(margin, y + 8, pageWidth - margin, y + 8);
+}
+/* Diagonal "DRAFT" stamp, drawn on every page of the PDF, only while the document's
+   status is still Draft — a functional safeguard against an unfinished document being
+   mistaken for final, not a decorative logo watermark (see design discussion). */
+function drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND){
+  const totalPages = pdf.internal.getNumberOfPages();
+  for(let i = 1; i <= totalPages; i++){
+    pdf.setPage(i);
+    const supportsOpacity = typeof pdf.setGState === 'function' && typeof pdf.GState === 'function';
+    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 0.13 }));
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(70); pdf.setTextColor(...BRAND);
+    pdf.text('DRAFT', pageWidth/2, pageHeight/2, { align:'center', angle:35 });
+    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 1 }));
+  }
+  pdf.setPage(totalPages);
+}
+
 function generatePDF(doc){
   const project = DB.projects.find(p=>p.id===doc.projectId);
   if(!project){ alert('Project not found for this document.'); return; }
@@ -3447,6 +3482,7 @@ function generatePDF(doc){
   const ledger = getProjectLedger(project);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'letter' });
+  const totalPagesExp = '{total_pages_count_string}';
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 40;
@@ -3535,7 +3571,7 @@ function generatePDF(doc){
   if(isRichScope){
     const blocks = parseScopeBlocks(scopeRaw);
     blocks.forEach(b=>{
-      if(y > pageHeight - 140){ pdf.addPage(); y = 50; }
+      if(y > pageHeight - 140){ pdf.addPage(); drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesExp); y = 62; }
       const sizePt = b.sizePx ? Math.max(7, Math.min(20, b.sizePx * 0.75)) : 9;
       pdf.setFont('helvetica', b.bold && b.italic ? 'bolditalic' : (b.bold ? 'bold' : (b.italic ? 'italic' : 'normal')));
       pdf.setFontSize(sizePt);
@@ -3566,20 +3602,23 @@ function generatePDF(doc){
     y += 20 + 14;
   } else {
     pdf.autoTable({
-      startY: y, margin: { left: margin, right: margin },
+      startY: y, margin: { left: margin, right: margin, top: 60 },
       head: [['DESCRIPTION','QTY','UNIT','UNIT PRICE','AMOUNT']],
       headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9, fontStyle:'bold' },
       styles: { fontSize: 9, cellPadding: 5, textColor: INK },
       alternateRowStyles: { fillColor: [252,250,249] },
       body: doc.lineItems.map(li => [li.description, li.qty, li.unit, money(li.unitPrice), money(li.total)]),
-      columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} }
+      columnStyles: { 1:{halign:'center', cellWidth:40}, 2:{halign:'center', cellWidth:45}, 3:{halign:'right', cellWidth:80}, 4:{halign:'right', cellWidth:80} },
+      didDrawPage: function(data){
+        if(data.pageNumber > 1) drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesExp);
+      }
     });
     y = pdf.lastAutoTable.finalY + 14;
   }
 
   const totals = buildTotalsRows(doc.financials, doc.docType, project, ledger, doc.adjustments, doc.deductions);
   pdf.autoTable({
-    startY: y, margin: { left: pageWidth - margin - 240, right: margin }, tableWidth: 240,
+    startY: y, margin: { left: pageWidth - margin - 240, right: margin, top: 60 }, tableWidth: 240,
     theme: 'plain', styles: { fontSize: 9, cellPadding: 4 },
     body: totals.rows,
     columnStyles: { 0: { fontStyle:'bold', textColor:[70,65,60] }, 1: { halign:'right' } },
@@ -3587,6 +3626,9 @@ function generatePDF(doc){
       if(totals.highlight.includes(data.row.raw[0])){
         data.cell.styles.fillColor = BRAND; data.cell.styles.textColor = [255,255,255]; data.cell.styles.fontStyle = 'bold';
       }
+    },
+    didDrawPage: function(data){
+      if(data.pageNumber > 1) drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesExp);
     }
   });
   y = pdf.lastAutoTable.finalY + 12;
@@ -3602,7 +3644,7 @@ function generatePDF(doc){
   const notesText = (doc.notes || '').trim();
 
   const footerReserve = doc.docType === 'INVOICE' ? 60 : 100;
-  if(y > pageHeight - footerReserve - 70) { pdf.addPage(); y = 50; }
+  if(y > pageHeight - footerReserve - 70) { pdf.addPage(); drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesExp); y = 62; }
 
   if(notesText){
     pdf.setFillColor(...BRAND);
@@ -3635,6 +3677,9 @@ function generatePDF(doc){
   pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5); pdf.setTextColor(255,255,255);
   const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('   •   ');
   pdf.text(brandLine || 'Site Ledger', pageWidth/2, pageHeight - 17, { align:'center' });
+
+  if(doc.status === 'Draft') drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND);
+  pdf.putTotalPages(totalPagesExp);
 
   pdf.save(buildFilename(doc, project, client));
 }
