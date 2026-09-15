@@ -2143,8 +2143,8 @@ function renderLivePreview(){
         </div>
       </div>
       <div style="flex-shrink:0;text-align:right">
-        <p class="font-head" style="font-weight:700;font-size:30px;color:var(--orange);white-space:nowrap;margin:0">${DOC_TITLE_MAP[docType]}</p>
-        <table class="pv-meta pv-box" style="margin-top:12px;margin-left:auto"><tbody>${metaRowsHtml}</tbody></table>
+        <p class="font-head" style="font-weight:700;font-size:30px;color:var(--orange);white-space:nowrap;margin:0;line-height:1">${DOC_TITLE_MAP[docType]}</p>
+        <table class="pv-meta pv-box" style="margin-top:8px;margin-left:auto"><tbody>${metaRowsHtml}</tbody></table>
       </div>
     </div>
     <div class="pv-bar" style="margin-bottom:8px">Bill To</div>
@@ -3417,7 +3417,7 @@ function generatePDF(doc){
   pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
   pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
   pdf.text('BILL TO', margin + 6, y + 11.5);
-  y += 22;
+  y += 28;
 
   pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(...INK);
   pdf.text(client ? client.companyName : 'Client not on file', margin, y);
@@ -3525,7 +3525,7 @@ function generatePDF(doc){
     pdf.rect(margin, y, pageWidth - margin*2, 16, 'F');
     pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
     pdf.text('NOTES / TERMS', margin + 6, y + 11.5);
-    y += 24;
+    y += 27;
 
     pdf.setFont('helvetica','bold'); pdf.setFontSize(8.5); pdf.setTextColor(...INK);
     pdf.text('PAYMENT TERMS & NOTES', margin, y);
