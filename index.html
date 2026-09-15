@@ -362,6 +362,7 @@
           <button class="viewmode-btn" data-mode="preview">Preview</button>
         </div>
         <button id="ndPdfBtn" class="btn-ghost text-xs px-3 py-2 rounded-md" disabled>Download PDF</button>
+        <button id="ndMarkActiveBtn" class="hidden btn-ghost text-xs px-3 py-2 rounded-md" style="border-color:var(--orange);color:var(--orange-dark)">Mark as Sent</button>
         <button id="ndSaveBtn" class="btn-primary text-xs px-4 py-2 rounded-md font-medium">Save</button>
       </div>
     </div>
@@ -1157,6 +1158,66 @@ function assertProjectEditable(project){
   return true;
 }
 
+/* ------------------------- Delete with number reclaim ------------------------- */
+function parseGlobalDocNumber(docNumber){
+  const m = String(docNumber || '').match(/^([A-Z]+)-(\d{4})-(\d+)$/);
+  if(!m) return null;
+  return { code: m[1], year: m[2], seq: parseInt(m[3], 10) };
+}
+function parseProjectDocNumber(projectNumber){
+  const m = String(projectNumber || '').match(/^([A-Z]+)-(\d+)$/);
+  if(!m) return null;
+  return { code: m[1], seq: parseInt(m[2], 10) };
+}
+/* Deletes a document. If it's still a Draft AND its number is the most recently issued
+   one (both globally and/or per-project), that number is freed up so the next document
+   of the same type reuses it. Anything that already left Draft status keeps its number
+   permanently retired, matching standard invoicing practice — once a number has gone out
+   the door, it should never be reused, even if the document is later deleted or voided.
+   Shows a clear confirm() explaining which case applies before deleting anything.
+   Returns true if the document was deleted, false if the user cancelled or it wasn't found. */
+function deleteDocumentWithRenumber(docId){
+  const doc = DB.documents.find(d => d.id === docId);
+  if(!doc) return false;
+  const isDraft = doc.status === 'Draft';
+  const project = DB.projects.find(p => p.id === doc.projectId);
+
+  let willReclaimGlobal = false, willReclaimProject = false;
+  const g = parseGlobalDocNumber(doc.docNumber);
+  if(isDraft && g && DB.meta.docCounters[g.code] && DB.meta.docCounters[g.code][g.year] === g.seq){
+    willReclaimGlobal = true;
+  }
+  const p = parseProjectDocNumber(doc.projectNumber);
+  if(isDraft && project && p && project.docCounters && project.docCounters[p.code] === p.seq){
+    willReclaimProject = true;
+  }
+
+  let reclaimMsg;
+  if(isDraft && (willReclaimGlobal || willReclaimProject)){
+    reclaimMsg = `Since this is a draft and ${doc.docNumber} is the most recently issued number, it will be freed up — the next ${DOC_TYPE_LABEL[doc.docType]} you create will reuse it.`;
+  } else if(isDraft){
+    reclaimMsg = `This draft's number (${doc.docNumber}) isn't the most recently issued one, so it will remain retired to avoid numbering conflicts.`;
+  } else {
+    reclaimMsg = `This ${DOC_TYPE_LABEL[doc.docType]} was already marked "${doc.status}", so its number (${doc.docNumber}) will remain permanently retired to preserve consecutive numbering.`;
+  }
+  if(!confirm(`Delete ${doc.docNumber}?\n\n${reclaimMsg}`)) return false;
+
+  if(willReclaimGlobal){
+    DB.meta.docCounters[g.code][g.year] = Math.max(0, g.seq - 1);
+  }
+  if(willReclaimProject){
+    project.docCounters[p.code] = Math.max(0, p.seq - 1);
+    project.updatedAt = Date.now();
+  }
+  if(project){
+    const reclaimed = willReclaimGlobal || willReclaimProject;
+    logActivity(project.id, 'DOCUMENT_DELETED', `${DOC_TYPE_LABEL[doc.docType]} ${doc.docNumber} deleted (number ${reclaimed ? 'reclaimed for reuse' : 'permanently retired'})`, null);
+  }
+  DB.documents = DB.documents.filter(d => d.id !== docId);
+  saveDB();
+  return true;
+}
+
 function getProjectPayments(projectId){
   return (DB.payments || []).filter(p => p.projectId === projectId).sort((a,b)=> (a.date||'').localeCompare(b.date||'') || a.createdAt - b.createdAt);
 }
@@ -1171,7 +1232,7 @@ function getProjectLedger(project){
   const approvedCO = cos.reduce((s,d) => s + d.financials.grandTotal, 0);
   const original = Number(project.originalContractTotal) || 0;
   const revised = original + approvedCO;
-  const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE' && !['Void','Cancelled'].includes(d.status));
+  const invs = DB.documents.filter(d => d.projectId === project.id && d.docType === 'INVOICE' && !['Void','Cancelled','Draft'].includes(d.status));
   const totalInvoiced = invs.reduce((s,d) => s + d.financials.currentDue, 0);
   const totalPaid = getTotalPayments(project.id);
   const outstandingInvoices = totalInvoiced - totalPaid;
@@ -1777,6 +1838,30 @@ function updateBillSplitHint(){
 $('ndBillOriginal').addEventListener('input', updateBillSplitHint);
 $('ndBillChangeOrder').addEventListener('input', updateBillSplitHint);
 
+const DRAFT_EXIT_STATUS = { PROPOSAL: 'Sent', INVOICE: 'Issued', CHANGE_ORDER: 'Submitted' };
+const DRAFT_EXIT_LABEL  = { PROPOSAL: 'Mark as Sent', INVOICE: 'Mark as Issued', CHANGE_ORDER: 'Mark as Submitted' };
+function updateMarkActiveButton(){
+  const docType = $('ndDocType').value;
+  const btn = $('ndMarkActiveBtn');
+  const label = DRAFT_EXIT_LABEL[docType];
+  if(label && $('ndStatus').value === 'Draft'){
+    btn.textContent = label;
+    btn.classList.remove('hidden');
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+$('ndStatus').addEventListener('change', updateMarkActiveButton);
+$('ndMarkActiveBtn').addEventListener('click', ()=>{
+  const docType = $('ndDocType').value;
+  const nextStatus = DRAFT_EXIT_STATUS[docType];
+  if(!nextStatus) return;
+  $('ndStatus').value = nextStatus;
+  updateMarkActiveButton();
+  markDirty();
+  $('ndSaveBtn').click();
+});
+
 function onNdContextChange(){
   const project = getSelectedProject();
   const hint = $('ndProjectHint');
@@ -1861,6 +1946,7 @@ function onNdContextChange(){
   const heading = project ? `${project.projectCode} — ${project.projectName} — ${DOC_TYPE_LABEL[docType]}` : 'New Document';
   $('ndHeading').textContent = heading;
   recalcLedger();
+  updateMarkActiveButton();
 }
 
 function unitOptionsHtml(currentUnit){
@@ -2181,6 +2267,7 @@ function resetNewDocForm(){
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
   onNdContextChange();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   markSaved();
 }
 
@@ -2658,9 +2745,7 @@ function renderPdDocuments(){
   wireRecordPaymentButtons(body, 'pdRecordPaymentRowBtn');
   body.querySelectorAll('.pdPdfBtn').forEach(btn=> btn.addEventListener('click', ()=>{ const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc); }));
   body.querySelectorAll('.pdDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
-    if(!confirm('Delete this document?')) return;
-    DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
-    saveDB(); renderPdDocuments(); renderProjectDetail();
+    if(deleteDocumentWithRenumber(btn.dataset.id)){ renderPdDocuments(); renderProjectDetail(); }
   }));
   body.querySelectorAll('.pdConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   body.querySelectorAll('.pdEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
@@ -2829,9 +2914,7 @@ function renderAllDocs(){
     const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc);
   }));
   body.querySelectorAll('.adDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
-    if(!confirm('Delete this document?')) return;
-    DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
-    saveDB(); renderAllDocs();
+    if(deleteDocumentWithRenumber(btn.dataset.id)) renderAllDocs();
   }));
   body.querySelectorAll('.adConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
   body.querySelectorAll('.adEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
@@ -2879,6 +2962,7 @@ function convertToInvoice(sourceDocId){
   resetFieldOverrides();
   ndGeneratedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   setViewMode('split');
 }
 
@@ -2954,6 +3038,7 @@ function editDocument(docId){
   onNdContextChange();
 
   $('ndStatus').value = doc.status || getStatusOptions(doc.docType)[0];
+  updateMarkActiveButton();
   $('ndEditBanner').classList.remove('hidden');
   $('ndEditBannerLabel').textContent = `Editing ${doc.docNumber} — currently Rev ${doc.revisionNumber || 0}. Saving creates Rev ${(doc.revisionNumber||0) + 1}.`;
   $('ndRevisionReason').value = '';
@@ -3005,6 +3090,7 @@ function duplicateDocument(docId){
 
   ndDuplicatedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   setViewMode('split');
 }
 
@@ -3268,9 +3354,7 @@ function renderHistoryTab(){
       const doc = DB.documents.find(x=>x.id===btn.dataset.id); if(doc) generatePDF(doc);
     }));
     body.querySelectorAll('.hsDelBtn').forEach(btn=> btn.addEventListener('click', ()=>{
-      if(!confirm('Delete this document? This will also update the project ledger.')) return;
-      DB.documents = DB.documents.filter(x=>x.id!==btn.dataset.id);
-      saveDB(); renderHistoryTab();
+      if(deleteDocumentWithRenumber(btn.dataset.id)) renderHistoryTab();
     }));
     body.querySelectorAll('.hsConvertBtn').forEach(btn=> btn.addEventListener('click', ()=> convertToInvoice(btn.dataset.id)));
     body.querySelectorAll('.hsEditBtn').forEach(btn=> btn.addEventListener('click', ()=> editDocument(btn.dataset.id)));
