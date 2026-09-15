@@ -604,15 +604,7 @@
             <span>Live Preview · <span id="pvDocTypeLabel">PROPOSAL</span></span>
             <span>Exact print layout</span>
           </p>
-          <div id="livePreview" class="bg-white shadow-md border border-[var(--line)] p-8" style="position:relative">
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.06;pointer-events:none;z-index:0;overflow:hidden">
-              <img id="pvWatermarkImg" style="width:260px" alt="">
-            </div>
-            <div id="pvDraftStamp" class="hidden" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.14;pointer-events:none;z-index:0;overflow:hidden">
-              <span style="font-family:Arial,sans-serif;font-weight:800;font-size:90px;color:var(--orange);transform:rotate(-35deg);white-space:nowrap">DRAFT</span>
-            </div>
-            <div id="pvContentLayer" style="position:relative;z-index:1"></div>
-          </div>
+          <div id="livePreview" class="bg-white shadow-md border border-[var(--line)] p-8"></div>
         </div>
       </div>
     </div>
@@ -1860,14 +1852,12 @@ function updateMarkActiveButton(){
   }
 }
 $('ndStatus').addEventListener('change', updateMarkActiveButton);
-$('ndStatus').addEventListener('change', renderLivePreview);
 $('ndMarkActiveBtn').addEventListener('click', ()=>{
   const docType = $('ndDocType').value;
   const nextStatus = DRAFT_EXIT_STATUS[docType];
   if(!nextStatus) return;
   $('ndStatus').value = nextStatus;
   updateMarkActiveButton();
-  renderLivePreview();
   markDirty();
   $('ndSaveBtn').click();
 });
@@ -2225,9 +2215,7 @@ function renderLivePreview(){
   const contactLine = [DB.myCompany.phone, DB.myCompany.email].filter(Boolean).join('   •   ');
 
   const nameParts = splitCompanySuffix(DB.myCompany.name || 'Your Company');
-  const isDraftStatus = $('ndStatus').value === 'Draft';
-  $('pvDraftStamp').classList.toggle('hidden', !isDraftStatus);
-  $('pvContentLayer').innerHTML = `
+  $('livePreview').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:24px">
       <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto">
         <div style="width:58px;height:58px;border-radius:50%;border:2px solid var(--orange);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden">
@@ -2279,7 +2267,7 @@ function resetNewDocForm(){
   ['ndTax','ndOverhead','ndBonding','ndInsurance','ndScaffold','ndRigging','ndExtraLabor','ndExtraMaterials'].forEach(id => $(id).value = 0);
   resetFieldOverrides();
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   markSaved();
 }
 
@@ -2974,7 +2962,7 @@ function convertToInvoice(sourceDocId){
   resetFieldOverrides();
   ndGeneratedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   setViewMode('split');
 }
 
@@ -3051,7 +3039,6 @@ function editDocument(docId){
 
   $('ndStatus').value = doc.status || getStatusOptions(doc.docType)[0];
   updateMarkActiveButton();
-  renderLivePreview();
   $('ndEditBanner').classList.remove('hidden');
   $('ndEditBannerLabel').textContent = `Editing ${doc.docNumber} — currently Rev ${doc.revisionNumber || 0}. Saving creates Rev ${(doc.revisionNumber||0) + 1}.`;
   $('ndRevisionReason').value = '';
@@ -3103,7 +3090,7 @@ function duplicateDocument(docId){
 
   ndDuplicatedFrom = { documentId: src.id, docNumber: src.docNumber };
   onNdContextChange();
-  $('ndStatus').value = 'Draft'; updateMarkActiveButton(); renderLivePreview();
+  $('ndStatus').value = 'Draft'; updateMarkActiveButton();
   setViewMode('split');
 }
 
@@ -3475,35 +3462,6 @@ function drawContinuationHeader(pdf, doc, client, pageWidth, margin, totalPagesE
 /* Diagonal "DRAFT" stamp, drawn on every page of the PDF, only while the document's
    status is still Draft — a functional safeguard against an unfinished document being
    mistaken for final, not a decorative logo watermark (see design discussion). */
-function drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND){
-  const totalPages = pdf.internal.getNumberOfPages();
-  for(let i = 1; i <= totalPages; i++){
-    pdf.setPage(i);
-    const supportsOpacity = typeof pdf.setGState === 'function' && typeof pdf.GState === 'function';
-    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 0.13 }));
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(70); pdf.setTextColor(...BRAND);
-    pdf.text('DRAFT', pageWidth/2, pageHeight/2, { align:'center', angle:35 });
-    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 1 }));
-  }
-  pdf.setPage(totalPages);
-}
-/* Faint background logo watermark, centered on every page, reusing the same "A" icon
-   asset already embedded for the letterhead (no extra file size). Drawn beneath the
-   DRAFT stamp in z-order (watermark first, stamp after) so DRAFT stays the more
-   prominent of the two when both apply. */
-function drawLogoWatermarkOnAllPages(pdf, pageWidth, pageHeight){
-  const totalPages = pdf.internal.getNumberOfPages();
-  const wmH = 260, wmW = wmH * (350/300);
-  const supportsOpacity = typeof pdf.setGState === 'function' && typeof pdf.GState === 'function';
-  for(let i = 1; i <= totalPages; i++){
-    pdf.setPage(i);
-    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 0.06 }));
-    pdf.addImage(ARESH_A_ICON_B64, 'PNG', pageWidth/2 - wmW/2, pageHeight/2 - wmH/2, wmW, wmH);
-    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 1 }));
-  }
-  pdf.setPage(totalPages);
-}
-
 function generatePDF(doc){
   const project = DB.projects.find(p=>p.id===doc.projectId);
   if(!project){ alert('Project not found for this document.'); return; }
@@ -3707,8 +3665,6 @@ function generatePDF(doc){
   const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('   •   ');
   pdf.text(brandLine || 'Site Ledger', pageWidth/2, pageHeight - 17, { align:'center' });
 
-  drawLogoWatermarkOnAllPages(pdf, pageWidth, pageHeight);
-  if(doc.status === 'Draft') drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND);
   pdf.putTotalPages(totalPagesExp);
 
   pdf.save(buildFilename(doc, project, client));
@@ -3724,7 +3680,6 @@ function renderAllSelects(){
 }
 
 function bootFirstTime(){
-  $('pvWatermarkImg').src = ARESH_A_ICON_B64;
   renderHeader();
   loadMyCompanyForm();
   renderAllSelects();
