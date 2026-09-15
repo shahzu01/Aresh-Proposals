@@ -3474,6 +3474,22 @@ function drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND){
   }
   pdf.setPage(totalPages);
 }
+/* Faint background logo watermark, centered on every page, reusing the same "A" icon
+   asset already embedded for the letterhead (no extra file size). Drawn beneath the
+   DRAFT stamp in z-order (watermark first, stamp after) so DRAFT stays the more
+   prominent of the two when both apply. */
+function drawLogoWatermarkOnAllPages(pdf, pageWidth, pageHeight){
+  const totalPages = pdf.internal.getNumberOfPages();
+  const wmH = 260, wmW = wmH * (350/300);
+  const supportsOpacity = typeof pdf.setGState === 'function' && typeof pdf.GState === 'function';
+  for(let i = 1; i <= totalPages; i++){
+    pdf.setPage(i);
+    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 0.06 }));
+    pdf.addImage(ARESH_A_ICON_B64, 'PNG', pageWidth/2 - wmW/2, pageHeight/2 - wmH/2, wmW, wmH);
+    if(supportsOpacity) pdf.setGState(new pdf.GState({ opacity: 1 }));
+  }
+  pdf.setPage(totalPages);
+}
 
 function generatePDF(doc){
   const project = DB.projects.find(p=>p.id===doc.projectId);
@@ -3678,6 +3694,7 @@ function generatePDF(doc){
   const brandLine = [DB.myCompany.name, DB.myCompany.address].filter(Boolean).join('   •   ');
   pdf.text(brandLine || 'Site Ledger', pageWidth/2, pageHeight - 17, { align:'center' });
 
+  drawLogoWatermarkOnAllPages(pdf, pageWidth, pageHeight);
   if(doc.status === 'Draft') drawDraftStampOnAllPages(pdf, pageWidth, pageHeight, BRAND);
   pdf.putTotalPages(totalPagesExp);
 
