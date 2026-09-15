@@ -2115,7 +2115,7 @@ function renderLivePreview(){
 
   const notesRaw = $('ndNotes').value.trim();
   const notesSectionHtml = notesRaw ? `
-    <div class="pv-bar mb-2">Notes / Terms</div>
+    <div class="pv-bar" style="margin-bottom:8px">Notes / Terms</div>
     <p class="font-bold text-[11px] mb-1">Payment Terms &amp; Notes</p>
     <p class="text-[11px] mb-2" style="color:#6e675d; white-space:pre-line">${escapeHtml(notesRaw)}</p>` : '';
 
@@ -2130,8 +2130,8 @@ function renderLivePreview(){
 
   const nameParts = splitCompanySuffix(DB.myCompany.name || 'Your Company');
   $('livePreview').innerHTML = `
-    <div class="flex justify-between items-start mb-4" style="gap:24px">
-      <div class="flex items-start" style="gap:10px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:24px">
+      <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto">
         <div style="width:58px;height:58px;border-radius:50%;border:2px solid var(--orange);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden">
           <img src="${ARESH_A_ICON_B64}" style="height:40px" alt="">
         </div>
@@ -2142,12 +2142,12 @@ function renderLivePreview(){
           ${DB.myCompany.license ? `<p style="font-size:10px;color:#6e675d;margin-top:4px;line-height:1.2;white-space:nowrap">License #${escapeHtml(DB.myCompany.license)}</p>` : ''}
         </div>
       </div>
-      <p class="font-head font-bold text-3xl" style="color:var(--orange);flex-shrink:0;white-space:nowrap">${DOC_TITLE_MAP[docType]}</p>
+      <div style="flex-shrink:0;text-align:right">
+        <p class="font-head" style="font-weight:700;font-size:30px;color:var(--orange);white-space:nowrap;margin:0">${DOC_TITLE_MAP[docType]}</p>
+        <table class="pv-meta pv-box" style="margin-top:12px;margin-left:auto"><tbody>${metaRowsHtml}</tbody></table>
+      </div>
     </div>
-    <div class="flex justify-end mb-4">
-      <table class="pv-meta pv-box"><tbody>${metaRowsHtml}</tbody></table>
-    </div>
-    <div class="pv-bar mb-2">Bill To</div>
+    <div class="pv-bar" style="margin-bottom:8px">Bill To</div>
     <p class="font-bold text-sm">${client ? escapeHtml(client.companyName) : 'Client not on file'}</p>
     <p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientAddrOneLine)}</p>
     ${clientContactLine ? `<p class="text-[11px]" style="color:#6e675d">${escapeHtml(clientContactLine)}</p>` : ''}
